@@ -102,6 +102,17 @@ await page.keyboard.press('3'); await page.waitForTimeout(1500);
 check(await page.evaluate(() => __exists('pictureselector.bak.json')), 'Sicherung pictureselector.bak.json geschrieben');
 await page.keyboard.press('5'); await page.waitForTimeout(1200);
 
+// Klick auf Stern im Raster
+await page.click('#grid .tile[title^="2025/Handy/serie_1.jpg"] .stars span[data-s="3"]');
+await page.waitForTimeout(1200);
+data = await page.evaluate(() => __readJson('pictureselector.json'));
+check(data.images['2025/Handy/serie_1.jpg']?.stars.Nico === 3, 'Stern im Raster angeklickt (3)');
+await page.click('#grid .tile[title^="2025/Handy/serie_1.jpg"] .stars span[data-s="3"]');
+await page.waitForTimeout(1200);
+data = await page.evaluate(() => __readJson('pictureselector.json'));
+check(!data.images['2025/Handy/serie_1.jpg']?.stars.Nico, 'gleicher Stern nochmal = entfernt');
+await page.click('#grid .tile:nth-child(2)');
+
 console.log('4) Einzelansicht');
 await page.keyboard.press('Enter');
 await page.waitForSelector('#viewer:not(.hidden)');

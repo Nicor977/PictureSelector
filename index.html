@@ -60,7 +60,13 @@ header .folder{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:
 .tile.sel{outline:3px solid var(--sel);outline-offset:-3px}
 .tile.focus::after{content:"";position:absolute;inset:3px;border:2px dashed #fff9;border-radius:4px;pointer-events:none}
 .tile .info{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(transparent,#000a);color:#fff;font-size:12px;display:flex;gap:6px;align-items:flex-end;min-height:24px}
-.tile .stars{color:var(--star);letter-spacing:1px;text-shadow:0 0 2px #000}
+.tile .stars{display:inline-flex;color:var(--star);font-size:18px;line-height:1;text-shadow:0 0 2px #000;cursor:pointer}
+.tile .stars span{padding:0 1px;opacity:.35;color:#fff}
+.tile .stars span.on{opacity:1;color:var(--star)}
+/* Hover: Sterne bis zur Maus hervorheben */
+.tile .stars:hover span{opacity:1;color:var(--star)}
+.tile .stars span:hover ~ span{opacity:.35;color:#fff}
+.trashmode .tile .stars{pointer-events:none}
 .tile .others{opacity:.85}
 .tile .tagc{margin-left:auto;background:#0007;border-radius:8px;padding:0 6px}
 .tile .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:6px;word-break:break-all}
@@ -724,6 +730,7 @@ function renderAll() {
   const total = S.files.filter(f => S.mode === 'trash' ? isTrash(f) : !isTrash(f)).length;
   $('#count').textContent = t('count', S.view.length, total);
   $('#btnTrashView').textContent = S.mode === 'trash' ? t('backToPhotos') : t('trashView', S.files.filter(isTrash).length);
+  document.body.classList.toggle('trashmode', S.mode === 'trash');
   document.querySelectorAll('.normalOnly').forEach(e => e.classList.toggle('hidden', S.mode === 'trash'));
   document.querySelectorAll('.trashOnly').forEach(e => e.classList.toggle('hidden', S.mode !== 'trash'));
   updateSelUi();
@@ -736,7 +743,7 @@ function fillTile(f) {
   d.title = f.path + (tg.length ? '\n' + tg.join(', ') : '');
   d.classList.toggle('sel', S.selected.has(f.path));
   d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt="">` : `<div class="ph">${f.thumbErr ? '⚠ ' : ''}${esc(f.name)}</div>`) +
-    `<div class="info"><span class="stars">${starStr(mine)}</span><span class="others">${others}</span>${tg.length ? `<span class="tagc">🏷 ${tg.length}</span>` : ''}</div>`;
+    `<div class="info"><span class="stars">${[1, 2, 3, 4, 5].map(i => `<span data-s="${i}" class="${i <= mine ? 'on' : ''}" title="${i} ★">★</span>`).join('')}</span><span class="others">${others}</span>${tg.length ? `<span class="tagc">🏷 ${tg.length}</span>` : ''}</div>`;
 }
 function updateTile(f) { if (f.tile && f.tile.isConnected) fillTile(f); }
 function onIntersect(entries) {
@@ -1304,11 +1311,17 @@ function bind() {
   const grid = $('#grid');
   grid.addEventListener('click', e => {
     const tile = e.target.closest('.tile'); if (!tile) return;
+    const star = e.target.dataset.s;
+    if (star && S.mode !== 'trash') { // Klick auf Stern: nur dieses Bild bewerten, gleicher Wert nochmal = entfernen
+      const f = S.view[+tile.dataset.i];
+      setStars([f], starsOf(f) === +star ? 0 : +star);
+      return;
+    }
     const i = +tile.dataset.i;
     setFocus(i, e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey) ? 'toggle' : 'single');
     $('#main').focus();
   });
-  grid.addEventListener('dblclick', e => { const tile = e.target.closest('.tile'); if (tile) openViewer(+tile.dataset.i); });
+  grid.addEventListener('dblclick', e => { if (e.target.dataset.s) return; const tile = e.target.closest('.tile'); if (tile) openViewer(+tile.dataset.i); });
 
   $('#vPrev').onclick = () => viewerStep(-1);
   $('#vNext').onclick = () => viewerStep(1);
