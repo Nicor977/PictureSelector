@@ -133,6 +133,24 @@ await page.click('#tagFilter .chip:has-text("Urlaub")');
 check((await tileNames()).length === 1, 'Tag-Filter');
 await page.click('#tagFilter .chip:has-text("Urlaub")');
 
+console.log('5b) Sterne-Übersicht');
+const stat = v => page.$eval(`#stats .chip[data-v="${v}"] b`, b => +b.textContent);
+const sc = { all: await stat('any'), none: await stat('none'), s1: await stat('e1'), s2: await stat('e2'), s3: await stat('e3'), s4: await stat('e4'), s5: await stat('5') };
+console.log('     ', JSON.stringify(sc));
+check(sc.all === 9 && sc.none + sc.s1 + sc.s2 + sc.s3 + sc.s4 + sc.s5 === 9, 'Übersicht: Summe stimmt mit Gesamtzahl überein');
+check(sc.s4 === 1 && sc.s5 === 1 && sc.s2 === 1, 'Übersicht zählt 1× ★★, 1× ★★★★, 1× ★★★★★');
+await page.click('#stats .chip[data-v="e4"]');
+check((await tileNames()).length === 1 && await page.$eval('#fStars label:has-text("Nico") select', s => s.value) === 'e4', 'Klick auf ★★★★ filtert genau 4 Sterne');
+check(await stat('none') === sc.none, 'Übersicht bleibt beim Filtern vollständig');
+await page.click('#stats .chip[data-v="none"]');
+check((await tileNames()).length === sc.none, 'Klick auf „ohne ★“ zeigt unbewertete');
+await page.click('#grid .tile:nth-child(1)'); await page.keyboard.press('1'); await page.waitForTimeout(100);
+check(await stat('none') === sc.none - 1 && await stat('e1') === sc.s1 + 1, 'Übersicht aktualisiert sich beim Bewerten');
+await page.keyboard.press('0'); await page.keyboard.press('Escape');
+await page.screenshot({ path: 'tests/shot-stats.png' });
+await page.click('#stats .chip[data-v="none"]');
+check(await page.$eval('#fStars label:has-text("Nico") select', s => s.value) === 'any', 'zweiter Klick hebt Filter auf');
+
 console.log('6) Verschieben mit Namenskollision');
 // IMG_0001.jpg aus Handy und aus Kroatien in denselben neuen Ordner
 await page.click('#grid .tile[title^="2025/Kroatien/IMG_0001.jpg"]');
