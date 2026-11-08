@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Picture Selector</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232b6cb0'/%3E%3Cpath d='M16 6l3 6.5 7 .8-5.2 4.8 1.5 7L16 21.6 9.7 25.1l1.5-7L6 13.3l7-.8z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#dde1e6; --text:#1c2430; --muted:#6b7684;
+  --accent:#2b6cb0; --accent-soft:#e3edf8; --star:#e6a700; --danger:#c53030; --sel:#2b6cb0;
+  --tile:180px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#15181d; --panel:#1f242b; --line:#323a44; --text:#e6e9ed; --muted:#97a1ad;
+    --accent:#5a9be0; --accent-soft:#25384d; --star:#f2b81c; --danger:#f56565; --sel:#5a9be0; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--danger)}
+button.link{border:none;background:none;padding:2px 4px;color:var(--accent)}
+select,input[type=text],input[type=number]{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 7px}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+
+/* Start */
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+#start .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;max-width:520px;width:100%}
+#start h1{margin:0 0 4px;font-size:24px}
+#start p{margin:6px 0 16px}
+#start .actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+#start .actions button{padding:10px 14px;text-align:left}
+#browserWarn{background:#fff3cd;color:#664d03;border-radius:6px;padding:10px;margin-top:12px}
+
+/* App layout */
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header .title{font-weight:600;font-size:15px}
+header .folder{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#saveState{font-size:12px;color:var(--muted);min-width:90px}
+#filters{display:flex;gap:12px;align-items:center;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#filters label{display:flex;gap:5px;align-items:center;color:var(--muted)}
+#tagFilter{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer;background:var(--panel);font-size:13px;user-select:none}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.some{background:var(--accent-soft);border-color:var(--accent)}
+#selbar{display:flex;gap:8px;align-items:center;padding:6px 12px;background:var(--accent-soft);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#main{flex:1;overflow:auto;padding:12px;outline:none}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tile),1fr));gap:8px}
+.tile{position:relative;aspect-ratio:1;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;content-visibility:auto;contain-intrinsic-size:var(--tile) var(--tile)}
+.tile img{width:100%;height:100%;object-fit:contain;display:block;background:#0001}
+.tile.sel{outline:3px solid var(--sel);outline-offset:-3px}
+.tile.focus::after{content:"";position:absolute;inset:3px;border:2px dashed #fff9;border-radius:4px;pointer-events:none}
+.tile .info{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(transparent,#000a);color:#fff;font-size:12px;display:flex;gap:6px;align-items:flex-end;min-height:24px}
+.tile .stars{color:var(--star);letter-spacing:1px;text-shadow:0 0 2px #000}
+.tile .others{opacity:.85}
+.tile .tagc{margin-left:auto;background:#0007;border-radius:8px;padding:0 6px}
+.tile .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:6px;word-break:break-all}
+#empty{padding:40px;text-align:center;color:var(--muted)}
+
+/* Viewer */
+#viewer{position:fixed;inset:0;background:#000;color:#fff;display:flex;flex-direction:column;z-index:20}
+#viewer .stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#viewer img{max-width:100%;max-height:100%;object-fit:contain}
+#viewer .nav{position:absolute;top:0;bottom:0;width:12%;display:flex;align-items:center;justify-content:center;font-size:42px;opacity:0;cursor:pointer;user-select:none}
+#viewer .nav:hover{opacity:.7}
+#viewer .nav.prev{left:0} #viewer .nav.next{right:0}
+#viewer .bar{display:flex;gap:14px;align-items:center;padding:8px 14px;background:#111;flex-wrap:wrap;font-size:13px}
+#viewer .bar button{background:#222;border-color:#444;color:#fff}
+#vStars{font-size:24px;color:var(--star);cursor:pointer;user-select:none;letter-spacing:2px}
+#vStars span{opacity:.35} #vStars span.on{opacity:1}
+#vTags .chip{background:#222;border-color:#444;color:#fff}
+#vTags .chip.on{background:var(--accent);border-color:var(--accent)}
+#vLoading{position:absolute;color:#aaa}
+.vmeta{color:#aaa}
+
+/* Dialogs */
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);padding:0;max-width:min(680px,94vw);width:100%}
+dialog::backdrop{background:#0008}
+dialog .dh{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;font-size:16px}
+dialog .db{padding:14px 18px;max-height:65vh;overflow:auto}
+dialog .df{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+dialog h3{margin:14px 0 6px;font-size:14px}
+dialog h3:first-child{margin-top:0}
+.list{border:1px solid var(--line);border-radius:6px;max-height:260px;overflow:auto}
+.list .it{padding:5px 9px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.list .it:last-child{border-bottom:none}
+.list .it.pick{cursor:pointer}
+.list .it.pick:hover{background:var(--accent-soft)}
+.list .it.on{background:var(--accent);color:#fff}
+.cands{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.cands .c{width:120px;border:2px solid var(--line);border-radius:6px;padding:4px;cursor:pointer;font-size:11px;word-break:break-all}
+.cands .c.on{border-color:var(--accent)}
+.cands .c img{width:100%;height:90px;object-fit:contain;background:#0001}
+.persons{display:flex;flex-direction:column;gap:8px}
+.persons button{padding:10px 14px;text-align:left;font-size:15px}
+
+#progress{position:fixed;inset:0;background:#0007;display:flex;align-items:center;justify-content:center;z-index:50}
+#progress .box{background:var(--panel);border-radius:10px;padding:22px 26px;min-width:320px;max-width:90vw}
+#progress .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:10px}
+#progress .bar div{height:100%;background:var(--accent);width:0}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;z-index:60;max-width:90vw;box-shadow:0 4px 16px #0005}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px;background:var(--bg)}
+</style>
+</head>
+<body>
+
+<!-- Startbildschirm -->
+<div id="start">
+  <div class="card">
+    <div class="row"><h1>Picture Selector</h1><span class="spacer"></span>
+      <select id="langStart"><option value="de">Deutsch</option><option value="en">English</option></select></div>
+    <p class="muted" data-t="tagline"></p>
+    <div class="actions">
+      <button id="btnRecent" class="primary hidden"></button>
+      <button id="btnOpen" data-t="openFolder"></button>
+    </div>
+    <div id="browserWarn" class="hidden" data-t="browserWarn"></div>
+    <p class="muted" style="margin-top:18px;font-size:12px" data-t="privacy"></p>
+  </div>
+</div>
+
+<!-- Hauptansicht -->
+<div id="app" class="hidden">
+  <header>
+    <span class="title">Picture Selector</span>
+    <span class="folder" id="folderName"></span>
+    <span class="spacer"></span>
+    <label class="muted"><span data-t="person"></span> <select id="personSel"></select></label>
+    <button id="btnTrashView"></button>
+    <button id="btnExport" data-t="export"></button>
+    <button id="btnImport" data-t="import"></button>
+    <button id="btnSettings" data-t="settings"></button>
+    <button id="btnHelp" title="?">?</button>
+    <span id="saveState"></span>
+  </header>
+  <div id="filters">
+    <label><span data-t="folder"></span> <select id="fFolder"></select></label>
+    <span id="fStars" class="row"></span>
+    <span id="tagFilter"></span>
+    <span class="spacer"></span>
+    <label><span data-t="sort"></span> <select id="fSort"><option value="asc"></option><option value="desc"></option></select></label>
+    <label title="Größe"><input type="range" id="fSize" min="110" max="420" value="180"></label>
+    <span id="count" class="muted"></span>
+  </div>
+  <div id="selbar" class="hidden">
+    <b id="selCount"></b>
+    <button id="sAll" data-t="selectAll"></button>
+    <button id="sNone" data-t="selectNone"></button>
+    <span class="spacer"></span>
+    <span class="normalOnly row">
+      <button id="sTags" data-t="tags"></button>
+      <button id="sMove" data-t="move"></button>
+      <button id="sTrash" class="danger" data-t="toTrash"></button>
+    </span>
+    <span class="trashOnly row"><button id="sRestore" class="primary" data-t="restore"></button></span>
+  </div>
+  <div id="main" tabindex="0">
+    <div id="grid"></div>
+    <div id="empty" class="hidden"></div>
+  </div>
+</div>
+
+<!-- Einzelansicht -->
+<div id="viewer" class="hidden">
+  <div class="stage">
+    <span id="vLoading" data-t="loading"></span>
+    <img id="vImg" alt="">
+    <div class="nav prev" id="vPrev">‹</div>
+    <div class="nav next" id="vNext">›</div>
+  </div>
+  <div class="bar">
+    <span id="vStars"></span>
+    <span id="vOthers" class="vmeta"></span>
+    <span id="vTags" class="row"></span>
+    <button id="vTagBtn">+ <span data-t="tag"></span> (T)</button>
+    <span class="spacer"></span>
+    <span id="vMeta" class="vmeta"></span>
+    <button id="vTrash" class="danger"></button>
+    <button id="vClose">✕ (Esc)</button>
+  </div>
+</div>
+
+<dialog id="dlg"><div class="dh" id="dlgHead"></div><div class="db" id="dlgBody"></div><div class="df" id="dlgFoot"></div></dialog>
+
+<div id="progress" class="hidden"><div class="box"><div id="progText"></div><div class="bar"><div id="progBar"></div></div><div id="progSub" class="muted" style="margin-top:6px;font-size:12px"></div></div></div>
+<div id="toast" class="hidden"></div>
+<input type="file" id="importFile" accept=".json,application/json" class="hidden">
+
+<script src="lib/exifr.umd.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   Picture Selector – Version 1
+   Sichten, Bewerten (Sterne pro Person), Taggen (gemeinsam),
+   Verschieben, Papierkorb, Export/Import der eigenen Bewertungen.
+   Alles läuft lokal im Browser (File System Access API, Edge/Chrome).
+   ===================================================================== */
+const APP_VERSION = '1.0.0';
+const DATA_FILE = 'pictureselector.json';
+const BAK_FILE = 'pictureselector.bak.json';
+const TRASH = '_Papierkorb';
+const IMG_EXT = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif']);
+const HEIC_EXT = new Set(['heic', 'heif']);
+const SKIP_DIRS = new Set(['$recycle.bin', 'system volume information', 'node_modules']);
+const THUMB_SIDE = 420;
+const EXIF_OPTS = { tiff: true, exif: true, gps: false, ifd1: false, interop: false, xmp: false, icc: false, iptc: false, jfif: false, ihdr: false, reviveValues: false, translateValues: false };
+const LIBHEIF_LOCAL = 'lib/libheif-bundle.js';
+const LIBHEIF_CDN = 'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js';
+
+/* ---------------------------- Texte DE/EN ---------------------------- */
+const I18N = {
+  de: {
+    tagline: 'Fotos sichten, bewerten, taggen und sortieren – direkt auf deiner Festplatte.',
+    openFolder: 'Bilderordner öffnen …', openRecent: 'Zuletzt geöffnet: {0}',
+    browserWarn: 'Dieser Browser unterstützt keinen Ordnerzugriff. Bitte Microsoft Edge oder Google Chrome verwenden.',
+    privacy: 'Es wird nichts hochgeladen. Bewertungen und Tags stehen in der Datei pictureselector.json im gewählten Ordner, die Bilder selbst bleiben unverändert.',
+    person: 'Person', export: 'Exportieren', import: 'Importieren', settings: 'Einstellungen',
+    folder: 'Ordner', allFolders: 'Alle Ordner', sort: 'Sortierung', sortAsc: 'Älteste zuerst', sortDesc: 'Neueste zuerst',
+    starsAny: 'egal', starsNone: 'unbewertet', starsMin: '≥ {0} ★', starsEq5: '= 5 ★',
+    untagged: 'ohne Tag', count: '{0} von {1} Bildern',
+    selected: '{0} ausgewählt', selectAll: 'Alle anzeigen auswählen', selectNone: 'Auswahl aufheben',
+    tags: 'Tags …', tag: 'Tag', move: 'Verschieben …', toTrash: 'In Papierkorb', restore: 'Wiederherstellen',
+    trashView: 'Papierkorb ({0})', backToPhotos: '← Zurück zu den Bildern',
+    loading: 'Lädt …', empty: 'Keine Bilder für diese Auswahl.', emptyTrash: 'Der Papierkorb ist leer.',
+    saved: 'Gespeichert', saving: 'Speichert …', unsaved: 'Nicht gespeichert', saveError: 'Fehler beim Speichern!',
+    whoRates: 'Wer bewertet?', whoRatesText: 'Die Sterne werden pro Person gespeichert. Tags gelten für alle.',
+    newPerson: '+ Neue Person', newPersonName: 'Name der neuen Person:',
+    scanning: 'Ordner werden gelesen …', scanFound: '{0} Bilder gefunden',
+    readingMeta: 'Aufnahmedaten werden gelesen …', ofN: '{0} von {1}',
+    permDenied: 'Kein Zugriff auf den Ordner erhalten.',
+    close: 'Schließen', cancel: 'Abbrechen', ok: 'OK', apply: 'Übernehmen', skip: 'Überspringen', save: 'Speichern', del: 'Löschen', rename: 'Umbenennen',
+    tagsFor: 'Tags für {0} Bild(er)', newTag: 'Neues Tag …', addTag: 'Hinzufügen', noTags: 'Noch keine Tags angelegt.',
+    tagHint: 'Klick schaltet ein Tag für alle gewählten Bilder an oder aus. Halb markiert = nur einige Bilder haben es.',
+    moveTitle: '{0} Bild(er) verschieben', moveTarget: 'Zielordner (innerhalb des Hauptordners):', rootFolder: '(Hauptordner)',
+    newFolder: 'Neuer Unterordner im gewählten Ordner:', moveDo: 'Verschieben',
+    moving: 'Verschiebe Bilder …', moved: '{0} Bild(er) verschoben.', trashed: '{0} Bild(er) in den Papierkorb verschoben.',
+    restored: '{0} Bild(er) wiederhergestellt.', renamedOnMove: '{0} wegen gleichem Namen umbenannt (z.B. {1}).',
+    moveErrors: '{0} Fehler: {1}',
+    trashConfirm: '{0} Bild(er) in den Ordner „_Papierkorb“ verschieben? Endgültig löschen kannst du später selbst im Explorer.',
+    exportTitle: 'Meine Bewertungen exportieren', exportText: 'Exportiert die Sterne von {0} ({1} Bilder) und alle Tags ({2} Bilder) in eine Datei. Diese Datei kann auf einem anderen Computer importiert werden.',
+    exportDo: 'Datei speichern', exported: 'Export gespeichert: {0}',
+    importBad: 'Diese Datei ist kein Picture-Selector-Export.',
+    importTitle: 'Import von {0}', importConfirm: 'Die Datei enthält {0} Bilder mit Sternen von {1} und Tags. Sterne von {1} werden überschrieben, Tags werden ergänzt. Fortfahren?',
+    importReport: 'Import abgeschlossen', importMatched: '{0} Bilder zugeordnet', importNotFound: '{0} nicht gefunden', importAmb: '{0} nicht eindeutig (mehrere passende Bilder)',
+    importOwn: 'Achtung: Du importierst Bewertungen von {0}, bist aber als {1} angemeldet. Die Sterne von {0} werden aktualisiert, deine bleiben unverändert.',
+    reidTitle: 'Umbenannte oder verschobene Bilder', reidAuto: '{0} Bewertung(en) wurden umbenannten oder verschobenen Bildern automatisch zugeordnet.',
+    reidAmb: 'Für diese Bewertungen passen mehrere Bilder. Bitte das richtige anklicken oder überspringen:',
+    reidOld: 'Früher: {0}', reidStars: 'Sterne: {0}', reidTags: 'Tags: {0}',
+    setPersons: 'Personen', setTags: 'Tags', setCameras: 'Zeitkorrektur pro Kamera', setLang: 'Sprache',
+    camHint: 'Falls eine Kamera falsch eingestellt war (z.B. Winterzeit), hier die Abweichung in Stunden eintragen, z.B. 1 oder -0.5. Wirkt nur auf die Sortierung.',
+    camImages: '{0} Bilder', camNone: 'ohne EXIF (Dateidatum)', hours: 'Std.',
+    removePerson: 'Entfernen', personInUse: '{0} hat noch Bewertungen und kann nicht entfernt werden.',
+    tagRenamePrompt: 'Neuer Name für „{0}“:', tagDeleteConfirm: 'Tag „{0}“ bei allen Bildern entfernen?',
+    orphans: '{0} gespeicherte Bewertung(en) gehören zu Bildern, die nicht mehr gefunden werden. Sie bleiben erhalten.',
+    help: 'Tastatur', helpText: [
+      ['← → ↑ ↓', 'Bild wechseln'], ['1 – 5', 'Sterne vergeben'], ['0', 'Sterne entfernen'],
+      ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['Entf', 'In Papierkorb'],
+      ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['Esc', 'Schließen / Auswahl aufheben']],
+    heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
+    noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
+    newFileHint: 'Neuer Ordner: pictureselector.json wird bei der ersten Bewertung angelegt.',
+    jsonBroken: 'pictureselector.json konnte nicht gelesen werden ({0}). Zum Schutz wird nichts überschrieben. Bitte die Datei prüfen oder pictureselector.bak.json zurückkopieren.',
+  },
+  en: {
+    tagline: 'Review, rate, tag and sort your photos – directly on your hard drive.',
+    openFolder: 'Open picture folder …', openRecent: 'Recently opened: {0}',
+    browserWarn: 'This browser does not support folder access. Please use Microsoft Edge or Google Chrome.',
+    privacy: 'Nothing is uploaded. Ratings and tags are stored in pictureselector.json inside the chosen folder; the pictures themselves stay unchanged.',
+    person: 'Person', export: 'Export', import: 'Import', settings: 'Settings',
+    folder: 'Folder', allFolders: 'All folders', sort: 'Sort', sortAsc: 'Oldest first', sortDesc: 'Newest first',
+    starsAny: 'any', starsNone: 'unrated', starsMin: '≥ {0} ★', starsEq5: '= 5 ★',
+    untagged: 'untagged', count: '{0} of {1} pictures',
+    selected: '{0} selected', selectAll: 'Select all shown', selectNone: 'Clear selection',
+    tags: 'Tags …', tag: 'Tag', move: 'Move …', toTrash: 'Move to trash', restore: 'Restore',
+    trashView: 'Trash ({0})', backToPhotos: '← Back to pictures',
+    loading: 'Loading …', empty: 'No pictures match this filter.', emptyTrash: 'The trash is empty.',
+    saved: 'Saved', saving: 'Saving …', unsaved: 'Not saved', saveError: 'Error while saving!',
+    whoRates: 'Who is rating?', whoRatesText: 'Stars are stored per person. Tags are shared.',
+    newPerson: '+ New person', newPersonName: 'Name of the new person:',
+    scanning: 'Reading folders …', scanFound: '{0} pictures found',
+    readingMeta: 'Reading capture dates …', ofN: '{0} of {1}',
+    permDenied: 'Access to the folder was not granted.',
+    close: 'Close', cancel: 'Cancel', ok: 'OK', apply: 'Apply', skip: 'Skip', save: 'Save', del: 'Delete', rename: 'Rename',
+    tagsFor: 'Tags for {0} picture(s)', newTag: 'New tag …', addTag: 'Add', noTags: 'No tags yet.',
+    tagHint: 'Click toggles a tag for all selected pictures. Half-marked = only some pictures have it.',
+    moveTitle: 'Move {0} picture(s)', moveTarget: 'Target folder (inside the main folder):', rootFolder: '(main folder)',
+    newFolder: 'New subfolder in the selected folder:', moveDo: 'Move',
+    moving: 'Moving pictures …', moved: '{0} picture(s) moved.', trashed: '{0} picture(s) moved to trash.',
+    restored: '{0} picture(s) restored.', renamedOnMove: '{0} renamed because of an existing name (e.g. {1}).',
+    moveErrors: '{0} errors: {1}',
+    trashConfirm: 'Move {0} picture(s) to the "_Papierkorb" folder? You can delete them permanently later in Explorer.',
+    exportTitle: 'Export my ratings', exportText: 'Exports the stars of {0} ({1} pictures) and all tags ({2} pictures) to a file that can be imported on another computer.',
+    exportDo: 'Save file', exported: 'Export saved: {0}',
+    importBad: 'This file is not a Picture Selector export.',
+    importTitle: 'Import from {0}', importConfirm: 'The file contains {0} pictures with stars from {1} and tags. Stars from {1} will be overwritten, tags will be added. Continue?',
+    importReport: 'Import finished', importMatched: '{0} pictures matched', importNotFound: '{0} not found', importAmb: '{0} ambiguous (several matching pictures)',
+    importOwn: 'Note: you are importing ratings from {0} while signed in as {1}. Stars from {0} will be updated, yours stay unchanged.',
+    reidTitle: 'Renamed or moved pictures', reidAuto: '{0} rating(s) were automatically matched to renamed or moved pictures.',
+    reidAmb: 'Several pictures match these ratings. Click the right one or skip:',
+    reidOld: 'Before: {0}', reidStars: 'Stars: {0}', reidTags: 'Tags: {0}',
+    setPersons: 'People', setTags: 'Tags', setCameras: 'Time correction per camera', setLang: 'Language',
+    camHint: 'If a camera clock was wrong (e.g. daylight saving), enter the offset in hours, e.g. 1 or -0.5. Only affects sorting.',
+    camImages: '{0} pictures', camNone: 'no EXIF (file date)', hours: 'h',
+    removePerson: 'Remove', personInUse: '{0} still has ratings and cannot be removed.',
+    tagRenamePrompt: 'New name for "{0}":', tagDeleteConfirm: 'Remove tag "{0}" from all pictures?',
+    orphans: '{0} stored rating(s) belong to pictures that can no longer be found. They are kept.',
+    help: 'Keyboard', helpText: [
+      ['← → ↑ ↓', 'Change picture'], ['1 – 5', 'Set stars'], ['0', 'Remove stars'],
+      ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['Del', 'Move to trash'],
+      ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['Esc', 'Close / clear selection']],
+    heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
+    noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
+    newFileHint: 'New folder: pictureselector.json will be created with the first rating.',
+    jsonBroken: 'pictureselector.json could not be read ({0}). To be safe nothing will be overwritten. Please check the file or copy pictureselector.bak.json back.',
+  }
+};
+let LANG = (() => { try { return localStorage.getItem('ps.lang') || (navigator.language.startsWith('de') ? 'de' : 'en'); } catch { return 'de'; } })();
+function t(key, ...a) {
+  let s = (I18N[LANG] && I18N[LANG][key]) ?? I18N.de[key] ?? key;
+  if (typeof s === 'string') a.forEach((v, i) => { s = s.split('{' + i + '}').join(v); });
+  return s;
+}
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t(el.dataset.t); });
+  $('#langStart').value = LANG;
+  const so = $('#fSort').options; so[0].textContent = t('sortAsc'); so[1].textContent = t('sortDesc');
+  if (S.root) { renderFilters(); renderAll(); }
+  updateRecentButton();
+}
+
+/* ---------------------------- Hilfsfunktionen ---------------------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const extOf = n => { const i = n.lastIndexOf('.'); return i < 0 ? '' : n.slice(i + 1).toLowerCase(); };
+const joinPath = (dir, name) => dir ? dir + '/' + name : name;
+const dirOf = p => { const i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const starStr = n => '★'.repeat(n || 0);
+function fnv1a(buf) {
+  const b = new Uint8Array(buf); let h = 0x811c9dc5;
+  for (let i = 0; i < b.length; i++) { h ^= b[i]; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+function toast(msg, ms = 3500) {
+  const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.add('hidden'), ms);
+}
+function progress(text, done, total, sub) {
+  const p = $('#progress');
+  if (text === null) { p.classList.add('hidden'); return; }
+  p.classList.remove('hidden'); $('#progText').textContent = text;
+  $('#progBar').style.width = total ? (100 * done / total).toFixed(1) + '%' : '0';
+  $('#progSub').textContent = sub || (total ? t('ofN', done, total) : '');
+}
+async function pool(items, n, fn, onProgress) {
+  let i = 0, done = 0;
+  const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const idx = i++; await fn(items[idx], idx); done++; onProgress && onProgress(done, items.length); }
+  });
+  await Promise.all(workers);
+}
+
+/* ---------------------------- IndexedDB (Cache) ---------------------------- */
+const DB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('pictureselector', 1);
+      r.onupgradeneeded = () => { const d = r.result; ['kv', 'meta', 'thumbs'].forEach(s => d.objectStoreNames.contains(s) || d.createObjectStore(s)); };
+      r.onsuccess = () => { this.db = r.result; res(this.db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async get(store, key) {
+    try { const d = await this.open(); return await new Promise((res, rej) => { const q = d.transaction(store).objectStore(store).get(key); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+    catch { return undefined; }
+  },
+  async put(store, key, val) {
+    try { const d = await this.open(); await new Promise((res, rej) => { const tx = d.transaction(store, 'readwrite'); tx.objectStore(store).put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+    catch { /* Cache ist optional */ }
+  }
+};
+
+/* ---------------------------- Zustand ---------------------------- */
+const S = {
+  root: null,          // FileSystemDirectoryHandle des Hauptordners
+  data: null,          // Inhalt von pictureselector.json
+  dataExisted: false,
+  lastSavedText: null,
+  person: null,
+  files: [],           // alle Bilder (inkl. Papierkorb)
+  byPath: new Map(),
+  dirs: new Map(),     // relativer Pfad -> DirectoryHandle
+  view: [],            // aktuell angezeigte (gefilterte, sortierte) Bilder
+  selected: new Set(), // Pfade
+  focus: -1, anchor: -1,
+  mode: 'main',        // 'main' | 'trash'
+  filter: { folder: '', stars: {}, tags: new Set(), untagged: false, sort: 'asc' },
+  dirty: false, saving: null, readOnly: false,
+};
+function emptyData() { return { version: 1, app: 'Picture Selector', people: ['Nico', 'Simone'], tags: [], cameraOffsets: {}, images: {} }; }
+
+/* ---------------------------- Start ---------------------------- */
+async function updateRecentButton() {
+  const b = $('#btnRecent'); const h = await DB.get('kv', 'lastRoot');
+  if (h) { b.textContent = t('openRecent', h.name); b.classList.remove('hidden'); b.onclick = () => openRoot(h); }
+  else b.classList.add('hidden');
+}
+async function pickFolder() {
+  try { const h = await window.showDirectoryPicker({ id: 'pictureselector', mode: 'readwrite' }); await openRoot(h); }
+  catch (e) { if (e.name !== 'AbortError') toast(e.message); }
+}
+async function openRoot(handle) {
+  let perm = await handle.queryPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') { toast(t('permDenied')); return; }
+  if (!window.__PS_TEST__) await DB.put('kv', 'lastRoot', handle);
+  S.root = handle;
+  S.data = null; S.readOnly = false; S.dataExisted = false; S.lastSavedText = null;
+  try {
+    const fh = await handle.getFileHandle(DATA_FILE);
+    const txt = await (await fh.getFile()).text();
+    S.data = normalizeData(JSON.parse(txt)); S.dataExisted = true; S.lastSavedText = txt;
+  } catch (e) {
+    if (e.name === 'NotFoundError') S.data = emptyData();
+    else { S.data = emptyData(); S.readOnly = true; alert(t('jsonBroken', e.message)); }
+  }
+  $('#start').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#folderName').textContent = handle.name; $('#folderName').title = handle.name;
+  await scanAll();
+  await choosePerson();
+  if (!S.dataExisted) toast(t('newFileHint'), 5000);
+  await reidentify();
+}
+function normalizeData(d) {
+  if (!d || typeof d !== 'object') throw new Error('invalid');
+  d.version = d.version || 1;
+  d.people = Array.isArray(d.people) ? d.people : [];
+  d.tags = Array.isArray(d.tags) ? d.tags : [];
+  d.cameraOffsets = d.cameraOffsets || {};
+  d.images = d.images || {};
+  for (const e of Object.values(d.images)) { e.stars = e.stars || {}; e.tags = e.tags || []; }
+  return d;
+}
+
+/* ---------------------------- Einlesen ---------------------------- */
+async function scanAll() {
+  S.files = []; S.byPath.clear(); S.dirs.clear(); S.selected.clear(); S.focus = -1;
+  progress(t('scanning'), 0, 0, t('scanFound', 0));
+  const found = [];
+  async function walk(dir, rel) {
+    S.dirs.set(rel, dir);
+    for await (const [name, h] of dir.entries()) {
+      if (name.startsWith('.')) continue;
+      if (h.kind === 'directory') {
+        if (SKIP_DIRS.has(name.toLowerCase())) continue;
+        await walk(h, joinPath(rel, name));
+      } else if (IMG_EXT.has(extOf(name))) {
+        found.push({ name, dir: rel, dirHandle: dir, handle: h });
+        if (found.length % 200 === 0) progress(t('scanning'), 0, 0, t('scanFound', found.length));
+      }
+    }
+  }
+  await walk(S.root, '');
+  progress(t('readingMeta'), 0, found.length);
+  let lastUi = 0;
+  await pool(found, 6, async (f) => {
+    const file = await f.handle.getFile();
+    const rec = {
+      path: joinPath(f.dir, f.name), name: f.name, dir: f.dir, dirHandle: f.dirHandle, handle: f.handle,
+      size: file.size, mtime: file.lastModified, ext: extOf(f.name), meta: null, thumbUrl: null,
+    };
+    rec.meta = await getMeta(rec, file);
+    S.files.push(rec); S.byPath.set(rec.path, rec);
+  }, (d, n) => { const now = performance.now(); if (now - lastUi > 100 || d === n) { lastUi = now; progress(t('readingMeta'), d, n); } });
+  for (const f of S.files) { const e = S.data.images[f.path]; if (e && f.meta) e.id = idOf(f); }
+  progress(null);
+  computeSortTimes();
+  renderFilters();
+  renderAll();
+}
+const isTrash = f => f.path === TRASH || f.path.startsWith(TRASH + '/');
+function cameraOf(ex) {
+  const make = (ex.Make || '').trim(), model = (ex.Model || '').trim();
+  if (!make && !model) return '';
+  if (model.toLowerCase().startsWith(make.toLowerCase())) return model;
+  return (make + ' ' + model).trim();
+}
+async function getMeta(rec, file) {
+  const key = rec.path + '|' + rec.size + '|' + rec.mtime;
+  const cached = await DB.get('meta', key);
+  if (cached && cached.v === 3) return cached;
+  const m = { v: 3, quick: null, exif: null, time: null, cam: '', w: 0, h: 0, orient: 1 };
+  try { m.quick = rec.size + '|' + fnv1a(await file.slice(0, 65536).arrayBuffer()); } catch { }
+  try {
+    let ex = null;
+    try { ex = await exifr.parse(file, EXIF_OPTS); } catch { ex = null; }
+    if ((!ex || ex.errors || !ex.DateTimeOriginal) && HEIC_EXT.has(rec.ext)) ex = await heicExifFallback(file) || ex;
+    if (ex) {
+      const dt = ex.DateTimeOriginal || ex.CreateDate;
+      const mm = typeof dt === 'string' && dt.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+      m.cam = cameraOf(ex);
+      m.w = ex.ExifImageWidth || ex.PixelXDimension || ex.ImageWidth || 0;
+      m.h = ex.ExifImageHeight || ex.PixelYDimension || ex.ImageHeight || 0;
+      m.orient = ex.Orientation || 1;
+      if (mm && mm[1] !== '0000') {
+        const sub = ex.SubSecTimeOriginal != null ? String(ex.SubSecTimeOriginal).trim() : '';
+        m.time = Date.UTC(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5], +mm[6]) + (sub ? Math.round(parseFloat('0.' + sub) * 1000) : 0);
+        const iso = `${mm[1]}-${mm[2]}-${mm[3]}T${mm[4]}:${mm[5]}:${mm[6]}` + (sub ? '.' + sub : '');
+        m.exif = `${iso}|${(ex.Make || '').trim()}|${(ex.Model || '').trim()}|${m.w}x${m.h}`;
+      }
+    }
+  } catch { /* kein EXIF (z.B. PNG, WhatsApp) */ }
+  await DB.put('meta', key, m);
+  return m;
+}
+// Manche HEIC-Dateien liest exifr nicht: dann den TIFF-Block direkt suchen
+async function heicExifFallback(file) {
+  const b = new Uint8Array(await file.slice(0, 512 * 1024).arrayBuffer());
+  for (let i = 0; i < b.length - 10; i++) {
+    if (b[i] === 0x45 && b[i + 1] === 0x78 && b[i + 2] === 0x69 && b[i + 3] === 0x66 && b[i + 4] === 0 && b[i + 5] === 0 &&
+      ((b[i + 6] === 0x4d && b[i + 7] === 0x4d && b[i + 8] === 0 && b[i + 9] === 0x2a) || (b[i + 6] === 0x49 && b[i + 7] === 0x49 && b[i + 8] === 0x2a && b[i + 9] === 0))) {
+      try { return await exifr.parse(b.slice(i + 6), EXIF_OPTS); } catch { return null; }
+    }
+  }
+  return null;
+}
+const idOf = f => { const id = {}; if (f.meta.exif) id.exif = f.meta.exif; if (f.meta.quick) id.quick = f.meta.quick; return id; };
+function computeSortTimes() {
+  const offs = S.data.cameraOffsets || {};
+  for (const f of S.files) {
+    if (f.meta && f.meta.time != null) f.sortTime = f.meta.time + (offs[f.meta.cam] || 0) * 1000;
+    else f.sortTime = f.mtime - new Date(f.mtime).getTimezoneOffset() * 60000; // lokale Zeit wie EXIF
+  }
+}
+
+/* ---------------------------- Personen ---------------------------- */
+function choosePerson() {
+  return new Promise(resolve => {
+    const last = (() => { try { return localStorage.getItem('ps.person.' + S.root.name); } catch { return null; } })();
+    const body = document.createElement('div');
+    body.innerHTML = `<p class="muted">${esc(t('whoRatesText'))}</p><div class="persons"></div>`;
+    const list = body.querySelector('.persons');
+    const pick = name => { setPerson(name); closeDialog(); resolve(); };
+    S.data.people.forEach(p => {
+      const b = document.createElement('button'); b.textContent = p; if (p === last) b.classList.add('primary');
+      b.onclick = () => pick(p); list.appendChild(b);
+    });
+    const nb = document.createElement('button'); nb.textContent = t('newPerson');
+    nb.onclick = () => { const n = (prompt(t('newPersonName')) || '').trim(); if (n) { addPerson(n); pick(n); } };
+    list.appendChild(nb);
+    openDialog(t('whoRates'), body, [], { noClose: true });
+  });
+}
+function addPerson(n) { if (!S.data.people.includes(n)) { S.data.people.push(n); markDirty(); } }
+function setPerson(name) {
+  S.person = name;
+  try { localStorage.setItem('ps.person.' + S.root.name, name); } catch { }
+  renderPersonSel(); renderFilters(); renderAll();
+}
+function renderPersonSel() {
+  const sel = $('#personSel'); sel.innerHTML = '';
+  S.data.people.forEach(p => sel.add(new Option(p, p)));
+  sel.add(new Option(t('newPerson'), '__new'));
+  sel.value = S.person;
+}
+
+/* ---------------------------- Daten ändern ---------------------------- */
+function entryOf(f, create) {
+  let e = S.data.images[f.path];
+  if (!e && create) { e = S.data.images[f.path] = { stars: {}, tags: [] }; if (f.meta) e.id = idOf(f); }
+  return e;
+}
+function pruneEntry(f) {
+  const e = S.data.images[f.path];
+  if (e && !Object.keys(e.stars).length && !e.tags.length) delete S.data.images[f.path];
+}
+function starsOf(f, person = S.person) { const e = S.data.images[f.path]; return (e && e.stars[person]) || 0; }
+function tagsOf(f) { const e = S.data.images[f.path]; return e ? e.tags : []; }
+function setStars(list, n) {
+  if (S.readOnly) return;
+  for (const f of list) {
+    const e = entryOf(f, true);
+    // 0 bleibt gespeichert, damit ein Export das Entfernen von Sternen weitergibt
+    if (n) e.stars[S.person] = n; else if (e.stars[S.person] != null) e.stars[S.person] = 0;
+    pruneZero(f);
+    updateTile(f);
+  }
+  markDirty();
+}
+function pruneZero(f) { /* Einträge nur mit 0-Sternen und ohne Tags bleiben bis zum nächsten Export erhalten */ pruneEntry(f); }
+function toggleTag(list, tag, on) {
+  if (S.readOnly) return;
+  if (!S.data.tags.includes(tag)) S.data.tags.push(tag);
+  for (const f of list) {
+    const e = entryOf(f, on); if (!e) continue;
+    const has = e.tags.includes(tag);
+    if (on && !has) e.tags.push(tag);
+    if (!on && has) e.tags.splice(e.tags.indexOf(tag), 1);
+    pruneEntry(f); updateTile(f);
+  }
+  markDirty(); renderTagFilter();
+}
+
+/* ---------------------------- Speichern ---------------------------- */
+let saveTimer = null;
+function markDirty() {
+  if (S.readOnly) return;
+  S.dirty = true; setSaveState('unsaved');
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 800);
+}
+function setSaveState(k) { const el = $('#saveState'); el.textContent = t(k); el.style.color = k === 'saveError' ? 'var(--danger)' : ''; }
+function saveNow() {
+  clearTimeout(saveTimer);
+  S.saving = (S.saving || Promise.resolve()).then(async () => {
+    if (!S.dirty || S.readOnly) return;
+    S.dirty = false; setSaveState('saving');
+    try {
+      S.data.savedAt = new Date().toISOString(); S.data.appVersion = APP_VERSION;
+      const txt = JSON.stringify(S.data, null, 1);
+      if (S.lastSavedText != null) await writeText(BAK_FILE, S.lastSavedText);
+      await writeText(DATA_FILE, txt);
+      S.lastSavedText = txt; S.dataExisted = true;
+      setSaveState(S.dirty ? 'unsaved' : 'saved');
+    } catch (e) { S.dirty = true; setSaveState('saveError'); toast(t('saveError') + ' ' + e.message, 8000); }
+  });
+  return S.saving;
+}
+async function writeText(name, txt) {
+  const fh = await S.root.getFileHandle(name, { create: true });
+  const w = await fh.createWritable(); await w.write(txt); await w.close();
+}
+window.addEventListener('beforeunload', e => { if (S.dirty) { saveNow(); e.preventDefault(); e.returnValue = t('leaveWarn'); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.dirty) saveNow(); });
+
+/* ---------------------------- Filter ---------------------------- */
+function renderFilters() {
+  if (!S.data) return;
+  // Ordner
+  const fs = $('#fFolder'); const cur = S.filter.folder; fs.innerHTML = '';
+  fs.add(new Option(t('allFolders'), ''));
+  [...S.dirs.keys()].filter(d => d && d !== TRASH && !d.startsWith(TRASH + '/')).sort((a, b) => a.localeCompare(b)).forEach(d => fs.add(new Option(d, d)));
+  fs.value = S.dirs.has(cur) ? cur : '';
+  // Sterne pro Person
+  const box = $('#fStars'); box.innerHTML = '';
+  S.data.people.forEach(p => {
+    const l = document.createElement('label');
+    l.innerHTML = `<span>${esc(p)}</span>`;
+    const s = document.createElement('select');
+    [['any', t('starsAny')], ['none', t('starsNone')], ['1', t('starsMin', 1)], ['2', t('starsMin', 2)], ['3', t('starsMin', 3)], ['4', t('starsMin', 4)], ['5', t('starsEq5')]]
+      .forEach(([v, x]) => s.add(new Option(x, v)));
+    s.value = S.filter.stars[p] || 'any';
+    s.onchange = () => { S.filter.stars[p] = s.value; renderAll(); };
+    l.appendChild(s); box.appendChild(l);
+  });
+  $('#fSort').value = S.filter.sort;
+  renderTagFilter();
+  renderPersonSel();
+  $('#btnTrashView').textContent = S.mode === 'trash' ? t('backToPhotos') : t('trashView', S.files.filter(isTrash).length);
+}
+function renderTagFilter() {
+  const box = $('#tagFilter'); box.innerHTML = '';
+  for (const tg of S.filter.tags) if (!S.data.tags.includes(tg)) S.filter.tags.delete(tg);
+  S.data.tags.forEach(tg => {
+    const c = document.createElement('span'); c.className = 'chip' + (S.filter.tags.has(tg) ? ' on' : ''); c.textContent = tg;
+    c.onclick = () => { S.filter.tags.has(tg) ? S.filter.tags.delete(tg) : S.filter.tags.add(tg); S.filter.untagged = false; renderTagFilter(); renderAll(); };
+    box.appendChild(c);
+  });
+  const u = document.createElement('span'); u.className = 'chip' + (S.filter.untagged ? ' on' : ''); u.textContent = t('untagged');
+  u.onclick = () => { S.filter.untagged = !S.filter.untagged; if (S.filter.untagged) S.filter.tags.clear(); renderTagFilter(); renderAll(); };
+  box.appendChild(u);
+}
+function computeView() {
+  const F = S.filter;
+  const v = S.files.filter(f => {
+    if (S.mode === 'trash') return isTrash(f);
+    if (isTrash(f)) return false;
+    if (F.folder && !(f.dir === F.folder || f.dir.startsWith(F.folder + '/'))) return false;
+    for (const p of S.data.people) {
+      const c = F.stars[p]; if (!c || c === 'any') continue;
+      const n = starsOf(f, p);
+      if (c === 'none' ? n !== 0 : n < +c) return false;
+    }
+    const tg = tagsOf(f);
+    if (F.untagged && tg.length) return false;
+    for (const x of F.tags) if (!tg.includes(x)) return false;
+    return true;
+  });
+  const dir = F.sort === 'desc' ? -1 : 1;
+  v.sort((a, b) => (a.sortTime - b.sortTime) * dir || a.path.localeCompare(b.path));
+  return v;
+}
+
+/* ---------------------------- Raster ---------------------------- */
+let observer = null;
+function renderAll() {
+  if (!S.data || !S.person) return;
+  const focusedPath = S.view[S.focus] && S.view[S.focus].path;
+  S.view = computeView();
+  S.focus = focusedPath ? S.view.findIndex(f => f.path === focusedPath) : -1;
+  for (const p of [...S.selected]) if (!S.byPath.has(p)) S.selected.delete(p);
+  const grid = $('#grid'); grid.innerHTML = '';
+  if (observer) observer.disconnect();
+  observer = new IntersectionObserver(onIntersect, { root: $('#main'), rootMargin: '600px' });
+  const frag = document.createDocumentFragment();
+  S.view.forEach((f, i) => {
+    const d = document.createElement('div'); d.className = 'tile'; d.dataset.i = i; f.tile = d;
+    fillTile(f); frag.appendChild(d); observer.observe(d);
+  });
+  grid.appendChild(frag);
+  const empty = $('#empty'); empty.textContent = S.mode === 'trash' ? t('emptyTrash') : t('empty');
+  empty.classList.toggle('hidden', S.view.length > 0);
+  const total = S.files.filter(f => S.mode === 'trash' ? isTrash(f) : !isTrash(f)).length;
+  $('#count').textContent = t('count', S.view.length, total);
+  $('#btnTrashView').textContent = S.mode === 'trash' ? t('backToPhotos') : t('trashView', S.files.filter(isTrash).length);
+  document.querySelectorAll('.normalOnly').forEach(e => e.classList.toggle('hidden', S.mode === 'trash'));
+  document.querySelectorAll('.trashOnly').forEach(e => e.classList.toggle('hidden', S.mode !== 'trash'));
+  updateSelUi();
+}
+function fillTile(f) {
+  const d = f.tile; if (!d) return;
+  const mine = starsOf(f);
+  const others = S.data.people.filter(p => p !== S.person && starsOf(f, p)).map(p => `${esc(p[0])}:${starsOf(f, p)}`).join(' ');
+  const tg = tagsOf(f);
+  d.title = f.path + (tg.length ? '\n' + tg.join(', ') : '');
+  d.classList.toggle('sel', S.selected.has(f.path));
+  d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt="">` : `<div class="ph">${f.thumbErr ? '⚠ ' : ''}${esc(f.name)}</div>`) +
+    `<div class="info"><span class="stars">${starStr(mine)}</span><span class="others">${others}</span>${tg.length ? `<span class="tagc">🏷 ${tg.length}</span>` : ''}</div>`;
+}
+function updateTile(f) { if (f.tile && f.tile.isConnected) fillTile(f); }
+function onIntersect(entries) {
+  for (const en of entries) {
+    const f = S.view[+en.target.dataset.i]; if (!f) continue;
+    if (en.isIntersecting) { if (!f.thumbUrl && !f.thumbErr) Thumbs.want(f); }
+    else Thumbs.unwant(f);
+  }
+}
+function updateSelUi() {
+  const n = S.selected.size;
+  $('#selbar').classList.toggle('hidden', n === 0);
+  $('#selCount').textContent = t('selected', n);
+  document.querySelectorAll('.tile.focus').forEach(e => e.classList.remove('focus'));
+  const f = S.view[S.focus]; if (f && f.tile) f.tile.classList.add('focus');
+}
+function selectedFiles() { return S.view.filter(f => S.selected.has(f.path)).concat(S.files.filter(f => S.selected.has(f.path) && !S.view.includes(f))); }
+function targetFiles() { if (S.selected.size) return selectedFiles(); const f = S.view[S.focus]; return f ? [f] : []; }
+function setFocus(i, mode) { // mode: 'single' | 'toggle' | 'range' | 'keep'
+  if (!S.view.length) return;
+  i = Math.max(0, Math.min(S.view.length - 1, i));
+  const f = S.view[i];
+  if (mode === 'single') { S.selected.clear(); S.selected.add(f.path); S.anchor = i; }
+  else if (mode === 'toggle') { S.selected.has(f.path) ? S.selected.delete(f.path) : S.selected.add(f.path); S.anchor = i; }
+  else if (mode === 'range') {
+    const a = S.anchor < 0 ? i : S.anchor; S.selected.clear();
+    for (let k = Math.min(a, i); k <= Math.max(a, i); k++) S.selected.add(S.view[k].path);
+  }
+  S.focus = i;
+  S.view.forEach(x => x.tile && x.tile.classList.toggle('sel', S.selected.has(x.path)));
+  updateSelUi();
+  if (f.tile) f.tile.scrollIntoView({ block: 'nearest' });
+}
+function columns() {
+  const g = $('#grid'); const tiles = g.children; if (tiles.length < 2) return 1;
+  const top = tiles[0].offsetTop; let c = 0; while (c < tiles.length && tiles[c].offsetTop === top) c++; return c || 1;
+}
+
+/* ---------------------------- Vorschaubilder ---------------------------- */
+const Thumbs = {
+  queue: [], wanted: new Set(), running: 0, heicRunning: false,
+  want(f) { if (this.wanted.has(f)) return; this.wanted.add(f); this.queue.push(f); this.pump(); },
+  unwant(f) { if (this.wanted.has(f)) { this.wanted.delete(f); const i = this.queue.indexOf(f); if (i >= 0) this.queue.splice(i, 1); } },
+  pump() {
+    while (this.running < 4 && this.queue.length) {
+      const idx = this.queue.findIndex(f => !Decode.isHeic(f) || !this.heicRunning);
+      if (idx < 0) return;
+      const f = this.queue.splice(idx, 1)[0];
+      const heic = Decode.isHeic(f); if (heic) this.heicRunning = true;
+      this.running++;
+      this.make(f).finally(() => { this.running--; if (heic) this.heicRunning = false; this.wanted.delete(f); this.pump(); });
+    }
+  },
+  async make(f) {
+    try {
+      const key = f.meta && f.meta.quick ? 'q:' + f.meta.quick : 'p:' + f.path + '|' + f.size + '|' + f.mtime;
+      let blob = await DB.get('thumbs', key);
+      if (!blob) {
+        const bmp = await Decode.bitmap(f, THUMB_SIDE);
+        const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        c.getContext('2d').drawImage(bmp, 0, 0); bmp.close && bmp.close();
+        blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+        if (blob) await DB.put('thumbs', key, blob);
+      }
+      if (f.thumbUrl) URL.revokeObjectURL(f.thumbUrl);
+      f.thumbUrl = URL.createObjectURL(blob);
+    } catch (e) { f.thumbErr = true; console.warn('Vorschau fehlgeschlagen', f.path, e); }
+    updateTile(f);
+  }
+};
+
+/* ---------------------------- Dekodieren (JPG/PNG/HEIC) ---------------------------- */
+const Decode = {
+  nativeHeic: null, lib: null, libPromise: null,
+  isHeic(f) { return HEIC_EXT.has(f.ext) && this.nativeHeic !== true; },
+  async bitmap(f, maxSide) { // maxSide = null => volle Größe
+    const file = await f.handle.getFile();
+    if (HEIC_EXT.has(f.ext) && this.nativeHeic !== true) {
+      if (this.nativeHeic === null) {
+        try { const b = await createImageBitmap(file); this.nativeHeic = true; return this.scale(b, maxSide); }
+        catch { this.nativeHeic = false; }
+      }
+      return this.heic(file, maxSide);
+    }
+    if (!maxSide) return createImageBitmap(file);
+    // Chrome skaliert vor dem Drehen (EXIF-Orientation), daher zählt das Rohformat
+    const tall = f.meta && f.meta.h > f.meta.w;
+    const bmp = await createImageBitmap(file, tall ? { resizeHeight: maxSide, resizeQuality: 'medium' } : { resizeWidth: maxSide, resizeQuality: 'medium' });
+    return this.scale(bmp, maxSide);
+  },
+  async scale(bmp, maxSide) {
+    if (!maxSide || Math.max(bmp.width, bmp.height) <= maxSide) return bmp;
+    const k = maxSide / Math.max(bmp.width, bmp.height);
+    const r = await createImageBitmap(bmp, { resizeWidth: Math.round(bmp.width * k), resizeHeight: Math.round(bmp.height * k), resizeQuality: 'medium' });
+    bmp.close(); return r;
+  },
+  loadLib() {
+    if (this.libPromise) return this.libPromise;
+    const load = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+    toast(t('heicLoading'));
+    this.libPromise = load(LIBHEIF_LOCAL).catch(() => load(LIBHEIF_CDN)).then(async () => {
+      let L = window.libheif; if (typeof L === 'function') L = await L();
+      this.lib = L; return L;
+    }).catch(e => { toast(t('heicFail'), 8000); throw e; });
+    return this.libPromise;
+  },
+  async heic(file, maxSide) {
+    const L = await this.loadLib();
+    const dec = new L.HeifDecoder();
+    const imgs = dec.decode(new Uint8Array(await file.arrayBuffer()));
+    if (!imgs || !imgs.length) throw new Error('HEIC: kein Bild');
+    const img = imgs[0];
+    const w = img.get_width(), h = img.get_height();
+    const data = new ImageData(w, h);
+    await new Promise((res, rej) => img.display(data, d => d ? res() : rej(new Error('HEIC-Dekodierung fehlgeschlagen'))));
+    imgs.forEach(i => i.free && i.free());
+    const bmp = await createImageBitmap(data);
+    return this.scale(bmp, maxSide);
+  }
+};
+
+/* ---------------------------- Einzelansicht ---------------------------- */
+const V = { open: false, idx: 0, url: null, cache: new Map(), token: 0 };
+function openViewer(i) {
+  if (!S.view.length) return;
+  V.open = true; V.idx = Math.max(0, Math.min(S.view.length - 1, i));
+  $('#viewer').classList.remove('hidden'); showViewer();
+}
+function closeViewer() {
+  V.open = false; $('#viewer').classList.add('hidden');
+  for (const u of V.cache.values()) URL.revokeObjectURL(u); V.cache.clear();
+  setFocus(V.idx, 'single');
+  $('#main').focus();
+}
+async function fullUrl(f) {
+  const k = f.path + '|' + f.mtime;
+  if (V.cache.has(k)) return V.cache.get(k);
+  let url;
+  if (HEIC_EXT.has(f.ext) && Decode.nativeHeic !== true) {
+    const bmp = await Decode.bitmap(f, null);
+    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); bmp.close();
+    url = URL.createObjectURL(await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92)));
+  } else url = URL.createObjectURL(await f.handle.getFile());
+  V.cache.set(k, url);
+  while (V.cache.size > 4) { const [ok, ou] = V.cache.entries().next().value; if (ou === $('#vImg').src) break; URL.revokeObjectURL(ou); V.cache.delete(ok); }
+  return url;
+}
+async function showViewer() {
+  const f = S.view[V.idx]; if (!f) { closeViewer(); return; }
+  S.focus = V.idx;
+  const token = ++V.token;
+  renderViewerBar();
+  $('#vLoading').classList.remove('hidden'); $('#vImg').style.opacity = .3;
+  try {
+    const url = await fullUrl(f);
+    if (token !== V.token) return;
+    $('#vImg').src = url; $('#vImg').style.opacity = 1;
+  } catch (e) { if (token === V.token) { $('#vImg').removeAttribute('src'); toast(e.message); } }
+  if (token === V.token) $('#vLoading').classList.add('hidden');
+  const n = S.view[V.idx + 1]; if (n) fullUrl(n).catch(() => { });
+}
+function renderViewerBar() {
+  const f = S.view[V.idx]; if (!f) return;
+  const n = starsOf(f);
+  $('#vStars').innerHTML = [1, 2, 3, 4, 5].map(i => `<span data-s="${i}" class="${i <= n ? 'on' : ''}">★</span>`).join('');
+  $('#vOthers').textContent = S.data.people.filter(p => p !== S.person && starsOf(f, p)).map(p => `${p}: ${starStr(starsOf(f, p))}`).join('  ');
+  const tg = tagsOf(f);
+  $('#vTags').innerHTML = tg.map(x => `<span class="chip on">${esc(x)}</span>`).join('');
+  const d = f.meta && f.meta.time != null ? new Date(f.sortTime) : new Date(f.sortTime);
+  const ds = d.toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'medium' });
+  $('#vMeta').textContent = `${V.idx + 1}/${S.view.length} · ${f.path} · ${ds} · ${f.meta && f.meta.cam ? f.meta.cam : (f.meta && f.meta.time != null ? t('unknownCam') : t('noExif'))}`;
+  $('#vTrash').textContent = S.mode === 'trash' ? t('restore') : '🗑 ' + t('toTrash') + ' (Entf)';
+}
+function viewerStep(d) { const i = V.idx + d; if (i >= 0 && i < S.view.length) { V.idx = i; showViewer(); } }
+
+/* ---------------------------- Dialoge ---------------------------- */
+function openDialog(title, body, buttons, opt = {}) {
+  const dlg = $('#dlg');
+  $('#dlgHead').textContent = title;
+  const b = $('#dlgBody'); b.innerHTML = ''; if (typeof body === 'string') b.innerHTML = body; else b.appendChild(body);
+  const ft = $('#dlgFoot'); ft.innerHTML = '';
+  buttons.forEach(([label, fn, cls]) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; ft.appendChild(x); });
+  ft.classList.toggle('hidden', !buttons.length);
+  dlg.oncancel = e => { if (opt.noClose) e.preventDefault(); else if (opt.onClose) opt.onClose(); };
+  if (!dlg.open) dlg.showModal();
+}
+function closeDialog() { const d = $('#dlg'); if (d.open) d.close(); if (!V.open) $('#main').focus(); }
+
+function tagDialog(list) {
+  if (!list.length) return;
+  const body = document.createElement('div');
+  const draw = () => {
+    body.innerHTML = `<p class="muted">${esc(t('tagHint'))}</p><div class="row" style="margin-bottom:10px"><input type="text" id="newTag" placeholder="${esc(t('newTag'))}" style="flex:1"><button id="addTag">${esc(t('addTag'))}</button></div><div class="row" id="tagChips"></div>`;
+    const box = body.querySelector('#tagChips');
+    if (!S.data.tags.length) box.innerHTML = `<span class="muted">${esc(t('noTags'))}</span>`;
+    S.data.tags.forEach(tg => {
+      const cnt = list.filter(f => tagsOf(f).includes(tg)).length;
+      const c = document.createElement('span'); c.className = 'chip' + (cnt === list.length ? ' on' : cnt ? ' some' : ''); c.textContent = tg;
+      c.onclick = () => { toggleTag(list, tg, cnt !== list.length); draw(); if (V.open) renderViewerBar(); };
+      box.appendChild(c);
+    });
+    const inp = body.querySelector('#newTag');
+    const add = () => { const v = inp.value.trim(); if (!v) return; toggleTag(list, v, true); draw(); if (V.open) renderViewerBar(); body.querySelector('#newTag').focus(); };
+    body.querySelector('#addTag').onclick = add;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } e.stopPropagation(); };
+  };
+  draw();
+  openDialog(t('tagsFor', list.length), body, [[t('close'), closeDialog, 'primary']]);
+  setTimeout(() => body.querySelector('#newTag').focus(), 30);
+}
+
+function moveDialog(list) {
+  if (!list.length) return;
+  const dirs = [...S.dirs.keys()].filter(d => d !== TRASH && !d.startsWith(TRASH + '/')).sort((a, b) => a.localeCompare(b));
+  let target = '';
+  const body = document.createElement('div');
+  body.innerHTML = `<p>${esc(t('moveTarget'))}</p><div class="list" id="dirList"></div><h3>${esc(t('newFolder'))}</h3><div class="row"><input type="text" id="newDir" style="flex:1" placeholder="z.B. Kalender 2026"></div>`;
+  const dl = body.querySelector('#dirList');
+  const draw = () => {
+    dl.innerHTML = '';
+    dirs.forEach(d => {
+      const it = document.createElement('div'); it.className = 'it pick' + (d === target ? ' on' : '');
+      it.textContent = d ? '📁 ' + d : '📁 ' + t('rootFolder');
+      it.onclick = () => { target = d; draw(); }; dl.appendChild(it);
+    });
+  };
+  draw();
+  body.querySelector('#newDir').onkeydown = e => e.stopPropagation();
+  openDialog(t('moveTitle', list.length), body, [
+    [t('cancel'), closeDialog],
+    [t('moveDo'), async () => {
+      const nd = body.querySelector('#newDir').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+      if (nd && (nd.split('/').some(p => !p || p === '.' || p === '..' || /[<>:"|?*]/.test(p)))) { toast('Ungültiger Ordnername'); return; }
+      const dest = nd ? joinPath(target, nd) : target;
+      if (dest === TRASH || dest.startsWith(TRASH + '/')) { toast('_Papierkorb'); return; }
+      closeDialog();
+      const r = await moveFiles(list, () => dest);
+      reportMove(r, 'moved');
+    }, 'primary']
+  ]);
+}
+async function trashFiles(list, ask = true) {
+  if (!list.length) return;
+  if (ask && list.length > 1 && !confirm(t('trashConfirm', list.length))) return;
+  const r = await moveFiles(list, f => joinPath(TRASH, f.dir));
+  reportMove(r, 'trashed');
+}
+async function restoreFiles(list) {
+  const r = await moveFiles(list, f => f.dir === TRASH ? '' : f.dir.slice(TRASH.length + 1));
+  reportMove(r, 'restored');
+}
+function reportMove(r, key) {
+  let msg = t(key, r.ok);
+  if (r.renamed.length) msg += ' ' + t('renamedOnMove', r.renamed.length, r.renamed[0]);
+  if (r.errors.length) { msg += ' ' + t('moveErrors', r.errors.length, r.errors[0]); console.warn(r.errors); }
+  toast(msg, r.errors.length ? 10000 : 4500);
+}
+
+/* ---------------------------- Verschieben ---------------------------- */
+async function getDir(rel, create) {
+  if (S.dirs.has(rel)) return S.dirs.get(rel);
+  let d = S.root, cur = '';
+  for (const part of rel.split('/').filter(Boolean)) {
+    cur = joinPath(cur, part);
+    if (S.dirs.has(cur)) { d = S.dirs.get(cur); continue; }
+    d = await d.getDirectoryHandle(part, { create }); S.dirs.set(cur, d);
+  }
+  return d;
+}
+async function exists(dir, name) {
+  try { await dir.getFileHandle(name); return true; } catch (e) { if (e.name === 'NotFoundError') return false; if (e.name === 'TypeMismatchError') return true; throw e; }
+}
+async function freeName(dir, rel, name, reserved) {
+  const i = name.lastIndexOf('.'); const base = i < 0 ? name : name.slice(0, i), ext = i < 0 ? '' : name.slice(i);
+  let cand = name, n = 0;
+  while (reserved.has((rel + '/' + cand).toLowerCase()) || await exists(dir, cand)) { n++; cand = `${base}_${n}${ext}`; }
+  reserved.add((rel + '/' + cand).toLowerCase());
+  return cand;
+}
+async function moveOne(f, destDir, newName) {
+  if (typeof f.handle.move === 'function') {
+    try { await f.handle.move(destDir, newName); return await destDir.getFileHandle(newName); }
+    catch (e) { if (await exists(destDir, newName)) return await destDir.getFileHandle(newName); /* sonst Kopieren */ }
+  }
+  const file = await f.handle.getFile();
+  const nh = await destDir.getFileHandle(newName, { create: true });
+  const w = await nh.createWritable(); await w.write(file); await w.close();
+  const check = await nh.getFile();
+  if (check.size !== file.size) throw new Error('Kopie unvollständig: ' + f.path);
+  await f.dirHandle.removeEntry(f.name);
+  return nh;
+}
+async function moveFiles(list, destFor) {
+  const res = { ok: 0, renamed: [], errors: [] };
+  const reserved = new Set();
+  progress(t('moving'), 0, list.length);
+  let k = 0;
+  for (const f of list) {
+    try {
+      const destRel = destFor(f);
+      if (destRel === f.dir) { k++; continue; }
+      const destDir = await getDir(destRel, true);
+      const newName = await freeName(destDir, destRel, f.name, reserved);
+      if (newName !== f.name) res.renamed.push(`${f.name} → ${newName}`);
+      const nh = await moveOne(f, destDir, newName);
+      const oldPath = f.path, newPath = joinPath(destRel, newName);
+      // Bewertung wandert mit
+      if (S.data.images[oldPath]) { S.data.images[newPath] = S.data.images[oldPath]; delete S.data.images[oldPath]; }
+      const file = await nh.getFile();
+      S.byPath.delete(oldPath);
+      Object.assign(f, { path: newPath, name: newName, dir: destRel, dirHandle: destDir, handle: nh, mtime: file.lastModified, size: file.size });
+      S.byPath.set(newPath, f);
+      if (S.selected.delete(oldPath)) { /* aus Auswahl entfernt */ }
+      if (f.meta) DB.put('meta', newPath + '|' + f.size + '|' + f.mtime, f.meta);
+      res.ok++;
+    } catch (e) { res.errors.push(`${f.path}: ${e.message}`); }
+    progress(t('moving'), ++k, list.length);
+  }
+  progress(null);
+  markDirty(); saveNow();
+  computeSortTimes(); renderFilters(); renderAll();
+  return res;
+}
+
+/* ---------------------------- Wiedererkennung ---------------------------- */
+function buildIndex(files) {
+  const q = new Map(), x = new Map();
+  for (const f of files) {
+    if (!f.meta) continue;
+    if (f.meta.quick) (q.get(f.meta.quick) || q.set(f.meta.quick, []).get(f.meta.quick)).push(f);
+    if (f.meta.exif) (x.get(f.meta.exif) || x.set(f.meta.exif, []).get(f.meta.exif)).push(f);
+  }
+  return { q, x };
+}
+function candidatesFor(id, idx, taken) {
+  if (!id) return [];
+  let c = id.quick ? (idx.q.get(id.quick) || []).filter(f => !taken.has(f.path)) : [];
+  if (!c.length && id.exif) c = (idx.x.get(id.exif) || []).filter(f => !taken.has(f.path));
+  return c;
+}
+async function reidentify() {
+  const orphans = Object.keys(S.data.images).filter(p => !S.byPath.has(p));
+  if (!orphans.length) return;
+  const fresh = S.files.filter(f => !S.data.images[f.path]);
+  const idx = buildIndex(fresh); const taken = new Set();
+  let auto = 0; const amb = [];
+  for (const p of orphans) {
+    const e = S.data.images[p];
+    const c = candidatesFor(e.id, idx, taken);
+    if (c.length === 1) { S.data.images[c[0].path] = e; delete S.data.images[p]; taken.add(c[0].path); auto++; }
+    else if (c.length > 1) amb.push({ p, e, c });
+  }
+  if (auto) { markDirty(); renderAll(); toast(t('reidAuto', auto), 6000); }
+  if (amb.length) await ambiguousDialog(amb, taken);
+  const rest = Object.keys(S.data.images).filter(p => !S.byPath.has(p)).length;
+  if (rest) console.info(t('orphans', rest));
+}
+function ambiguousDialog(amb, taken) {
+  return new Promise(resolve => {
+    const body = document.createElement('div');
+    body.innerHTML = `<p>${esc(t('reidAmb'))}</p>`;
+    const choice = new Map();
+    amb.forEach((a, ai) => {
+      const s = Object.entries(a.e.stars).filter(([, n]) => n).map(([p, n]) => `${p} ${n}★`).join(', ') || '–';
+      const sec = document.createElement('div');
+      sec.innerHTML = `<b>${esc(t('reidOld', a.p))}</b><div class="muted">${esc(t('reidStars', s))} · ${esc(t('reidTags', a.e.tags.join(', ') || '–'))}</div><div class="cands"></div>`;
+      const cb = sec.querySelector('.cands');
+      a.c.forEach(f => {
+        const el = document.createElement('div'); el.className = 'c';
+        el.innerHTML = `<img alt=""><div>${esc(f.path)}</div>`;
+        Thumbs.make(f).then(() => { if (f.thumbUrl) el.querySelector('img').src = f.thumbUrl; });
+        el.onclick = () => { choice.set(ai, choice.get(ai) === f ? null : f); cb.querySelectorAll('.c').forEach(x => x.classList.remove('on')); if (choice.get(ai)) el.classList.add('on'); };
+        cb.appendChild(el);
+      });
+      body.appendChild(sec);
+    });
+    const done = () => {
+      let n = 0;
+      amb.forEach((a, ai) => { const f = choice.get(ai); if (f && !taken.has(f.path) && !S.data.images[f.path]) { S.data.images[f.path] = a.e; delete S.data.images[a.p]; taken.add(f.path); n++; } });
+      if (n) { markDirty(); renderAll(); }
+      closeDialog(); resolve();
+    };
+    openDialog(t('reidTitle'), body, [[t('skip'), () => { closeDialog(); resolve(); }], [t('apply'), done, 'primary']], { onClose: resolve });
+  });
+}
+
+/* ---------------------------- Export / Import ---------------------------- */
+function exportDialog() {
+  const mine = [], tagged = [];
+  for (const [p, e] of Object.entries(S.data.images)) {
+    if (e.stars[S.person] != null) mine.push(p);
+    if (e.tags.length) tagged.push(p);
+  }
+  openDialog(t('exportTitle'), `<p>${esc(t('exportText', S.person, mine.filter(p => S.data.images[p].stars[S.person]).length, tagged.length))}</p>`, [
+    [t('cancel'), closeDialog],
+    [t('exportDo'), async () => {
+      const out = { type: 'pictureselector-export', version: 1, appVersion: APP_VERSION, person: S.person, exportedAt: new Date().toISOString(), folder: S.root.name, tags: S.data.tags, images: [] };
+      for (const [p, e] of Object.entries(S.data.images)) {
+        const has = e.stars[S.person] != null;
+        if (!has && !e.tags.length) continue;
+        const f = S.byPath.get(p);
+        const id = f && f.meta ? idOf(f) : (e.id || {});
+        const item = { path: p, id }; if (has) item.stars = e.stars[S.person]; if (e.tags.length) item.tags = e.tags;
+        out.images.push(item);
+      }
+      const name = `bewertungen-${S.person.toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-')}-${new Date().toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
+      try {
+        if (window.showSaveFilePicker) {
+          const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+          const w = await h.createWritable(); await w.write(blob); await w.close();
+        } else {
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+        closeDialog(); toast(t('exported', name));
+      } catch (e) { if (e.name !== 'AbortError') toast(e.message); }
+    }, 'primary']
+  ]);
+}
+async function importFile(file) {
+  let d;
+  try { d = JSON.parse(await file.text()); } catch { d = null; }
+  if (!d || d.type !== 'pictureselector-export' || !Array.isArray(d.images) || !d.person) { alert(t('importBad')); return; }
+  const who = String(d.person);
+  let msg = t('importConfirm', d.images.filter(i => i.stars != null).length, who);
+  if (who !== S.person) msg += '\n\n' + t('importOwn', who, S.person);
+  if (!confirm(msg)) return;
+  const r = applyImport(d);
+  const nf = r.notFound.slice(0, 200).map(x => `<div class="it">${esc(x)}</div>`).join('');
+  openDialog(t('importReport'), `<p>✔ ${esc(t('importMatched', r.matched))}<br>✖ ${esc(t('importNotFound', r.notFound.length))}${r.amb ? '<br>? ' + esc(t('importAmb', r.amb)) : ''}</p>${nf ? `<div class="list">${nf}</div>` : ''}`, [[t('close'), closeDialog, 'primary']]);
+}
+function applyImport(d) {
+  const who = String(d.person);
+  addPerson(who);
+  (d.tags || []).forEach(tg => { if (!S.data.tags.includes(tg)) S.data.tags.push(tg); });
+  const live = S.files.filter(f => !isTrash(f));
+  const idx = buildIndex(S.files);
+  const r = { matched: 0, notFound: [], amb: 0 };
+  for (const it of d.images) {
+    let f = null;
+    const byP = S.byPath.get(it.path);
+    if (byP && (!it.id || !it.id.quick || !byP.meta || byP.meta.quick === it.id.quick || (it.id.exif && byP.meta.exif === it.id.exif))) f = byP;
+    if (!f) {
+      const c = candidatesFor(it.id, idx, new Set());
+      const cl = c.filter(x => !isTrash(x));
+      if (c.length === 1) f = c[0]; else if (cl.length === 1) f = cl[0];
+      else if (c.length > 1) { r.amb++; r.notFound.push(it.path + ' (?)'); continue; }
+    }
+    if (!f) { r.notFound.push(it.path); continue; }
+    const e = entryOf(f, true);
+    if (it.stars != null) e.stars[who] = +it.stars || 0;
+    (it.tags || []).forEach(tg => { if (!e.tags.includes(tg)) e.tags.push(tg); if (!S.data.tags.includes(tg)) S.data.tags.push(tg); });
+    pruneEntry(f);
+    r.matched++;
+  }
+  void live;
+  markDirty(); renderFilters(); renderAll();
+  return r;
+}
+
+/* ---------------------------- Einstellungen ---------------------------- */
+function settingsDialog() {
+  const body = document.createElement('div');
+  const draw = () => {
+    const cams = new Map();
+    for (const f of S.files) { const c = f.meta && f.meta.time != null ? (f.meta.cam || t('unknownCam')) : null; const k = c === null ? '\u0000' : (f.meta.cam || ''); cams.set(k, (cams.get(k) || 0) + 1); }
+    body.innerHTML = `
+      <h3>${esc(t('setLang'))}</h3>
+      <select id="setLang"><option value="de">Deutsch</option><option value="en">English</option></select>
+      <h3>${esc(t('setPersons'))}</h3><div class="list" id="setPeople"></div>
+      <div class="row" style="margin-top:6px"><input type="text" id="setNewPerson" placeholder="${esc(t('newPersonName'))}"><button id="setAddPerson">${esc(t('addTag'))}</button></div>
+      <h3>${esc(t('setTags'))}</h3><div class="list" id="setTagList"></div>
+      <h3>${esc(t('setCameras'))}</h3><p class="muted" style="margin:0 0 6px">${esc(t('camHint'))}</p><div class="list" id="setCams"></div>
+      <p class="muted" style="margin-top:14px;font-size:12px">Picture Selector ${APP_VERSION}</p>`;
+    body.querySelectorAll('input').forEach(i => i.onkeydown = e => e.stopPropagation());
+    const ls = body.querySelector('#setLang'); ls.value = LANG; ls.onchange = () => { setLang(ls.value); draw(); $('#dlgHead').textContent = t('settings'); };
+    const pl = body.querySelector('#setPeople');
+    S.data.people.forEach(p => {
+      const it = document.createElement('div'); it.className = 'it';
+      it.innerHTML = `<span>${esc(p)}${p === S.person ? ' ✓' : ''}</span><span class="spacer"></span>`;
+      const rm = document.createElement('button'); rm.className = 'link'; rm.textContent = t('removePerson');
+      rm.onclick = () => {
+        const used = Object.values(S.data.images).some(e => e.stars[p]);
+        if (used || p === S.person) { alert(t('personInUse', p)); return; }
+        S.data.people = S.data.people.filter(x => x !== p); delete S.filter.stars[p]; markDirty(); renderFilters(); draw();
+      };
+      it.appendChild(rm); pl.appendChild(it);
+    });
+    body.querySelector('#setAddPerson').onclick = () => { const v = body.querySelector('#setNewPerson').value.trim(); if (v) { addPerson(v); renderFilters(); draw(); } };
+    const tl = body.querySelector('#setTagList');
+    if (!S.data.tags.length) tl.innerHTML = `<div class="it muted">${esc(t('noTags'))}</div>`;
+    S.data.tags.forEach(tg => {
+      const n = Object.values(S.data.images).filter(e => e.tags.includes(tg)).length;
+      const it = document.createElement('div'); it.className = 'it';
+      it.innerHTML = `<span>${esc(tg)}</span><span class="muted">${n}</span><span class="spacer"></span>`;
+      const rn = document.createElement('button'); rn.className = 'link'; rn.textContent = t('rename');
+      rn.onclick = () => {
+        const nn = (prompt(t('tagRenamePrompt', tg), tg) || '').trim(); if (!nn || nn === tg) return;
+        for (const e of Object.values(S.data.images)) { const i = e.tags.indexOf(tg); if (i >= 0) { if (e.tags.includes(nn)) e.tags.splice(i, 1); else e.tags[i] = nn; } }
+        const i = S.data.tags.indexOf(tg); if (S.data.tags.includes(nn)) S.data.tags.splice(i, 1); else S.data.tags[i] = nn;
+        if (S.filter.tags.delete(tg)) S.filter.tags.add(nn);
+        markDirty(); renderTagFilter(); renderAll(); draw();
+      };
+      const dl = document.createElement('button'); dl.className = 'link danger'; dl.textContent = t('del');
+      dl.onclick = () => {
+        if (!confirm(t('tagDeleteConfirm', tg))) return;
+        for (const [p, e] of Object.entries(S.data.images)) { const i = e.tags.indexOf(tg); if (i >= 0) e.tags.splice(i, 1); if (!Object.keys(e.stars).length && !e.tags.length) delete S.data.images[p]; }
+        S.data.tags = S.data.tags.filter(x => x !== tg); S.filter.tags.delete(tg);
+        markDirty(); renderTagFilter(); renderAll(); draw();
+      };
+      it.append(rn, dl); tl.appendChild(it);
+    });
+    const cl = body.querySelector('#setCams');
+    [...cams.entries()].sort((a, b) => b[1] - a[1]).forEach(([cam, n]) => {
+      const it = document.createElement('div'); it.className = 'it';
+      const label = cam === '\u0000' ? t('camNone') : (cam || t('unknownCam'));
+      it.innerHTML = `<span>${esc(label)}</span><span class="muted">${esc(t('camImages', n))}</span><span class="spacer"></span>`;
+      if (cam !== '\u0000') {
+        const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.25'; inp.style.width = '80px';
+        inp.value = ((S.data.cameraOffsets[cam] || 0) / 3600).toString();
+        inp.onkeydown = e => e.stopPropagation();
+        inp.onchange = () => {
+          const h = parseFloat(inp.value) || 0;
+          if (h) S.data.cameraOffsets[cam] = Math.round(h * 3600); else delete S.data.cameraOffsets[cam];
+          markDirty(); computeSortTimes(); renderAll();
+        };
+        const u = document.createElement('span'); u.className = 'muted'; u.textContent = t('hours');
+        it.append(inp, u);
+      }
+      cl.appendChild(it);
+    });
+  };
+  draw();
+  openDialog(t('settings'), body, [[t('close'), closeDialog, 'primary']]);
+}
+function setLang(l) { LANG = l; try { localStorage.setItem('ps.lang', l); } catch { } applyLang(); }
+function helpDialog() {
+  openDialog(t('help'), `<div class="list">${t('helpText').map(([k, d]) => `<div class="it"><kbd>${esc(k)}</kbd><span>${esc(d)}</span></div>`).join('')}</div>`, [[t('close'), closeDialog, 'primary']]);
+}
+
+/* ---------------------------- Ereignisse ---------------------------- */
+function bind() {
+  $('#btnOpen').onclick = pickFolder;
+  $('#langStart').onchange = e => setLang(e.target.value);
+  $('#fFolder').onchange = e => { S.filter.folder = e.target.value; renderAll(); };
+  $('#fSort').onchange = e => { S.filter.sort = e.target.value; renderAll(); };
+  $('#fSize').oninput = e => { document.documentElement.style.setProperty('--tile', e.target.value + 'px'); try { localStorage.setItem('ps.tile', e.target.value); } catch { } };
+  $('#personSel').onchange = e => {
+    if (e.target.value === '__new') { const n = (prompt(t('newPersonName')) || '').trim(); if (n) { addPerson(n); setPerson(n); } else renderPersonSel(); }
+    else setPerson(e.target.value);
+  };
+  $('#btnTrashView').onclick = () => { S.mode = S.mode === 'trash' ? 'main' : 'trash'; S.selected.clear(); S.focus = -1; renderFilters(); renderAll(); $('#main').scrollTop = 0; };
+  $('#btnExport').onclick = exportDialog;
+  $('#btnImport').onclick = () => $('#importFile').click();
+  $('#importFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); };
+  $('#btnSettings').onclick = settingsDialog;
+  $('#btnHelp').onclick = helpDialog;
+  $('#sAll').onclick = () => { S.view.forEach(f => S.selected.add(f.path)); renderAll(); };
+  $('#sNone').onclick = () => { S.selected.clear(); renderAll(); };
+  $('#sTags').onclick = () => tagDialog(selectedFiles());
+  $('#sMove').onclick = () => moveDialog(selectedFiles());
+  $('#sTrash').onclick = () => trashFiles(selectedFiles());
+  $('#sRestore').onclick = () => restoreFiles(selectedFiles());
+
+  const grid = $('#grid');
+  grid.addEventListener('click', e => {
+    const tile = e.target.closest('.tile'); if (!tile) return;
+    const i = +tile.dataset.i;
+    setFocus(i, e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey) ? 'toggle' : 'single');
+    $('#main').focus();
+  });
+  grid.addEventListener('dblclick', e => { const tile = e.target.closest('.tile'); if (tile) openViewer(+tile.dataset.i); });
+
+  $('#vPrev').onclick = () => viewerStep(-1);
+  $('#vNext').onclick = () => viewerStep(1);
+  $('#vClose').onclick = closeViewer;
+  $('#vTagBtn').onclick = () => tagDialog([S.view[V.idx]]);
+  $('#vTrash').onclick = () => viewerTrash();
+  $('#vStars').onclick = e => { const s = e.target.dataset.s; if (!s) return; const f = S.view[V.idx]; setStars([f], starsOf(f) === +s ? 0 : +s); renderViewerBar(); };
+
+  document.addEventListener('keydown', onKey);
+}
+async function viewerTrash() {
+  const f = S.view[V.idx]; if (!f) return;
+  const idx = V.idx;
+  if (S.mode === 'trash') await restoreFiles([f]); else await trashFiles([f], false);
+  if (!S.view.length) { closeViewer(); return; }
+  V.idx = Math.min(idx, S.view.length - 1); showViewer();
+}
+function onKey(e) {
+  if ($('#dlg').open || !S.person || $('#app').classList.contains('hidden')) return;
+  const tag = e.target.tagName; if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  const k = e.key;
+  if (V.open) {
+    const f = S.view[V.idx];
+    if (k === 'ArrowRight' || k === ' ') { viewerStep(1); e.preventDefault(); }
+    else if (k === 'ArrowLeft') { viewerStep(-1); e.preventDefault(); }
+    else if (k === 'Escape' || k === 'Enter') closeViewer();
+    else if (/^[0-5]$/.test(k) && !e.ctrlKey) { setStars([f], +k); renderViewerBar(); }
+    else if (k === 't' || k === 'T') { e.preventDefault(); tagDialog([f]); }
+    else if (k === 'Delete') viewerTrash();
+    else if (k === 'Home') { V.idx = 0; showViewer(); }
+    else if (k === 'End') { V.idx = S.view.length - 1; showViewer(); }
+    return;
+  }
+  const mode = e.shiftKey ? 'range' : 'single';
+  const cols = () => columns();
+  if (k === 'ArrowRight') { setFocus(S.focus + 1, mode); e.preventDefault(); }
+  else if (k === 'ArrowLeft') { setFocus(S.focus - 1, mode); e.preventDefault(); }
+  else if (k === 'ArrowDown') { setFocus(S.focus < 0 ? 0 : S.focus + cols(), mode); e.preventDefault(); }
+  else if (k === 'ArrowUp') { setFocus(S.focus - cols(), mode); e.preventDefault(); }
+  else if (k === 'Home') { setFocus(0, mode); e.preventDefault(); }
+  else if (k === 'End') { setFocus(S.view.length - 1, mode); e.preventDefault(); }
+  else if (k === 'Enter') { if (S.view.length) openViewer(S.focus < 0 ? 0 : S.focus); }
+  else if (k === 'Escape') { S.selected.clear(); renderAll(); }
+  else if ((k === 'a' || k === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); S.view.forEach(f => S.selected.add(f.path)); renderAll(); }
+  else if (/^[0-5]$/.test(k) && !e.ctrlKey && S.mode !== 'trash') setStars(targetFiles(), +k);
+  else if ((k === 't' || k === 'T') && S.mode !== 'trash') { e.preventDefault(); tagDialog(targetFiles()); }
+  else if ((k === 'm' || k === 'M') && S.mode !== 'trash') { e.preventDefault(); moveDialog(targetFiles()); }
+  else if (k === 'Delete') { const l = targetFiles(); if (S.mode === 'trash') restoreFiles(l); else trashFiles(l); }
+}
+
+/* ---------------------------- Init ---------------------------- */
+(function init() {
+  bind();
+  try { const ts = localStorage.getItem('ps.tile'); if (ts) { $('#fSize').value = ts; document.documentElement.style.setProperty('--tile', ts + 'px'); } } catch { }
+  if (!window.showDirectoryPicker) { $('#browserWarn').classList.remove('hidden'); $('#btnOpen').disabled = true; }
+  applyLang();
+})();
+</script>
+</body>
+</html>
