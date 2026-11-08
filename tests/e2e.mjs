@@ -80,6 +80,14 @@ check(heicThumb === '420x315', 'HEIC-Vorschau dekodiert: ' + heicThumb);
 const rot = await page.$$eval('#grid .tile', ts => { const t = ts.find(x => x.title.startsWith('2025/Handy/hochkant')); const i = t.querySelector('img'); return i.naturalWidth + 'x' + i.naturalHeight; });
 check(rot === '315x420', 'EXIF-Drehung (Orientation 6) beachtet: ' + rot);
 await page.screenshot({ path: 'tests/shot-grid.png' });
+check((await page.textContent('#grid .tile:nth-child(1) .who')) === 'N:', 'Kürzel der Person vor den Sternen');
+const fns = await page.$$eval('#grid .tile .fn', x => x.map(e => e.textContent));
+check(fns.some(x => x.startsWith('…\\')) && fns.every(x => x.length > 0), 'Dateiname unten rechts, langer Ordner als …\\: ' + fns.slice(0, 3).join(' | '));
+await page.$eval('#fSize', e => { e.value = 420; e.dispatchEvent(new Event('input')); });
+await page.waitForTimeout(200);
+check((await page.textContent('#grid .tile:nth-child(1) .fn')) === '2025\\Kroatien\\IMG_0001.jpg', 'große Kacheln: ganzer Pfad');
+await page.screenshot({ path: 'tests/shot-grid-big.png' });
+await page.$eval('#fSize', e => { e.value = 180; e.dispatchEvent(new Event('input')); });
 
 console.log('3) Bewerten und Taggen');
 await page.click('#grid .tile:nth-child(1)');
@@ -219,6 +227,10 @@ const e = data.images['2025/Kroatien/20250814_102231.heic'];
 check(e.stars.Simone === 3 && e.stars.Nico === 5, 'Simones Sterne ergänzt, Nicos unverändert');
 check(e.tags.includes('Familie') && e.tags.includes('Urlaub Kroatien 2025'), 'Tags zusammengeführt');
 check(data.people.includes('Simone'), 'Simone in Personenliste');
+const orow = page.locator('#grid .tile[title^="2025/Kroatien/20250814_102231.heic"] .orow');
+check((await orow.count()) === 1 && (await orow.locator('.who').textContent()) === 'S:' && (await orow.locator('.ostars span.on').count()) === 3, 'Simones Sterne unter Nicos Zeile (S: ★★★)');
+await page.locator('#grid .tile[title^="2025/Kroatien/20250814_102231.heic"]').screenshot({ path: 'tests/shot-tile.png' });
+await page.screenshot({ path: 'tests/shot-grid2.png' });
 
 console.log('11) Zeitkorrektur und Englisch');
 await page.click('#btnSettings');

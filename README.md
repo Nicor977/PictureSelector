@@ -14,7 +14,7 @@ Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
 
 - Liest alle Unterordner ein: `.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`. Videos und andere Dateien werden ignoriert.
 - Sortiert alle Bilder nach Aufnahmezeit (EXIF), über alle Kameras und Handys hinweg. Ohne EXIF zählt das Dateidatum. Zeitkorrektur pro Kamera unter *Einstellungen*.
-- Raster mit Vorschaubildern (werden im Browser zwischengespeichert) und Einzelansicht.
+- Raster mit Vorschaubildern: unten links die eigenen Sterne mit Anfangsbuchstaben (z.B. „N:“), darunter die Sterne der anderen (z.B. „S:“), unten rechts der Dateiname (bei Platzmangel wird der Ordner zu „…\“). Vorschaubilder (werden im Browser zwischengespeichert) und Einzelansicht.
 - **Sterne pro Person** (1–5), **Tags gemeinsam**. Filter nach Ordner, Sternen jeder Person (z.B. „Nico ≥ 4 und Simone ≥ 4“) und Tags.
 - **Sterne-Übersicht** unter den Filtern: wie viele Bilder es gibt, wie viele davon ohne Sterne und wie viele mit 1, 2, 3, 4 oder 5 Sternen – für die gewählte Person und passend zum Ordner-/Tag-Filter. Ein Klick auf eine Zahl zeigt genau diese Bilder, ein zweiter Klick hebt den Filter wieder auf. Im Sterne-Filter gibt es dafür zusätzlich „= 1 ★“ bis „= 4 ★“.
 - **Verschieben** in einen Zielordner innerhalb des Hauptordners (auch neu anlegen). Gibt es den Namen im Ziel schon, wird `_1`, `_2` … angehängt, nie überschrieben.
