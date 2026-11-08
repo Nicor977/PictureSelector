@@ -4,7 +4,7 @@ Fotos sichten, bewerten, taggen und sortieren – direkt auf der eigenen Festpla
 
 ## Starten
 
-1. `index.html` in **Microsoft Edge** oder **Google Chrome** öffnen (lokal per Doppelklick oder später unter regente.net/pictureselector).
+1. In **Microsoft Edge** oder **Google Chrome** öffnen: https://nicor977.github.io/PictureSelector/ (oder lokal `index.html` per Doppelklick).
 2. **Bilderordner öffnen** und den Zugriff erlauben (Lesen und Schreiben).
 3. Person wählen, die bewertet (z.B. Nico oder Simone).
 
@@ -63,6 +63,10 @@ Alles steht in `pictureselector.json` im gewählten Hauptordner, die Bilder selb
 - File System Access API (nur Edge/Chrome).
 - `lib/exifr.umd.js` – [exifr](https://github.com/MikeKovarik/exifr) 7.1.3 (MIT) zum Lesen der EXIF-Daten.
 - `lib/libheif-bundle.js` – [libheif-js](https://github.com/catdad-experiments/libheif-js) 1.19.8 (LGPL-3.0) zum Anzeigen von HEIC. Wird nur geladen, wenn HEIC-Dateien vorkommen; falls die Datei fehlt, wird sie von jsDelivr geladen.
+
+## Veröffentlichen
+
+Jeder Merge nach `main` veröffentlicht `index.html` und `lib/` automatisch auf GitHub Pages (`.github/workflows/pages.yml`). Einmalig nötig: *Settings → Pages → Source: GitHub Actions*.
 
 ## Tests
 
