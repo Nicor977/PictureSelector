@@ -23,7 +23,7 @@ Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
 - **Wiedererkennung** umbenannter oder verschobener Bilder: über Dateigröße + Prüfsumme der ersten 64 KB, sonst über EXIF (Aufnahmezeit mit Sekundenbruchteil, Hersteller, Modell, Bildgröße). Passen mehrere Bilder, fragt das Tool nach.
 - Oberfläche auf Deutsch und Englisch.
 
-Umbenennen nach Aufnahmezeit (`YYYYMMDD_HHmmss`) kommt in Version 2.
+- **Umbenennen nach Aufnahmezeit**: Bilder auswählen, „Umbenennen …“ (oder Taste R). Neuer Name `YYYYMMDD_HHmmss` aus der EXIF-Aufnahmezeit inkl. Zeitkorrektur der Kamera, Bilder aus derselben Sekunde bekommen `_1`, `_2` …, vorhandene Dateien werden nie überschrieben. Vorher zeigt eine Vorschau alle neuen Namen. Bilder ohne EXIF-Zeit (z.B. WhatsApp, Screenshots) bleiben unverändert, Bilder mit passendem Namen werden übersprungen. Sterne und Tags wandern mit.
 
 ## Tastatur
 
@@ -34,6 +34,7 @@ Umbenennen nach Aufnahmezeit (`YYYYMMDD_HHmmss`) kommt in Version 2.
 | Enter, Doppelklick | Einzelansicht |
 | T | Tags |
 | M | Verschieben |
+| R | Nach Aufnahmezeit umbenennen |
 | Entf | In den Papierkorb |
 | Strg+A | Alle angezeigten auswählen |
 | Esc | Schließen / Auswahl aufheben |

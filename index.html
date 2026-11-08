@@ -175,6 +175,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <span class="normalOnly row">
       <button id="sTags" data-t="tags"></button>
       <button id="sMove" data-t="move"></button>
+      <button id="sRename" data-t="renameBtn"></button>
       <button id="sTrash" class="danger" data-t="toTrash"></button>
     </span>
     <span class="trashOnly row"><button id="sRestore" class="primary" data-t="restore"></button></span>
@@ -262,6 +263,11 @@ const I18N = {
     moving: 'Verschiebe Bilder …', moved: '{0} Bild(er) verschoben.', trashed: '{0} Bild(er) in den Papierkorb verschoben.',
     restored: '{0} Bild(er) wiederhergestellt.', renamedOnMove: '{0} wegen gleichem Namen umbenannt (z.B. {1}).',
     moveErrors: '{0} Fehler: {1}',
+    renameBtn: 'Umbenennen …', renameTitle: '{0} Bild(er) nach Aufnahmezeit umbenennen',
+    renameIntro: 'Neuer Name: JJJJMMTT_HHMMSS (Aufnahmezeit inkl. Zeitkorrektur der Kamera). Bei gleicher Sekunde wird _1, _2 … angehängt. Vorhandene Dateien werden nie überschrieben, Sterne und Tags wandern mit.',
+    renameWill: '{0} Bild(er) werden umbenannt', renameSame: '{0} heißen schon richtig', renameNoExif: '{0} ohne Aufnahmezeit (EXIF) – bleiben unverändert',
+    renameMore: '… und {0} weitere', renameDo: 'Umbenennen', renameNothing: 'Nichts umzubenennen.',
+    renaming: 'Benenne Bilder um …', renamedDone: '{0} Bild(er) umbenannt.',
     trashConfirm: '{0} Bild(er) in den Ordner „_Papierkorb“ verschieben? Endgültig löschen kannst du später selbst im Explorer.',
     exportTitle: 'Meine Bewertungen exportieren', exportText: 'Exportiert die Sterne von {0} ({1} Bilder) und alle Tags ({2} Bilder) in eine Datei. Diese Datei kann auf einem anderen Computer importiert werden.',
     exportDo: 'Datei speichern', exported: 'Export gespeichert: {0}',
@@ -280,7 +286,7 @@ const I18N = {
     orphans: '{0} gespeicherte Bewertung(en) gehören zu Bildern, die nicht mehr gefunden werden. Sie bleiben erhalten.',
     help: 'Tastatur', helpText: [
       ['← → ↑ ↓', 'Bild wechseln'], ['1 – 5', 'Sterne vergeben'], ['0', 'Sterne entfernen'],
-      ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['Entf', 'In Papierkorb'],
+      ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['R', 'Nach Aufnahmezeit umbenennen'], ['Entf', 'In Papierkorb'],
       ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['Esc', 'Schließen / Auswahl aufheben']],
     heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
     noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
@@ -315,6 +321,11 @@ const I18N = {
     moving: 'Moving pictures …', moved: '{0} picture(s) moved.', trashed: '{0} picture(s) moved to trash.',
     restored: '{0} picture(s) restored.', renamedOnMove: '{0} renamed because of an existing name (e.g. {1}).',
     moveErrors: '{0} errors: {1}',
+    renameBtn: 'Rename …', renameTitle: 'Rename {0} picture(s) by capture time',
+    renameIntro: 'New name: YYYYMMDD_HHMMSS (capture time incl. camera time correction). Pictures from the same second get _1, _2 … Existing files are never overwritten; stars and tags move along.',
+    renameWill: '{0} picture(s) will be renamed', renameSame: '{0} already have the right name', renameNoExif: '{0} without capture time (EXIF) – left unchanged',
+    renameMore: '… and {0} more', renameDo: 'Rename', renameNothing: 'Nothing to rename.',
+    renaming: 'Renaming pictures …', renamedDone: '{0} picture(s) renamed.',
     trashConfirm: 'Move {0} picture(s) to the "_Papierkorb" folder? You can delete them permanently later in Explorer.',
     exportTitle: 'Export my ratings', exportText: 'Exports the stars of {0} ({1} pictures) and all tags ({2} pictures) to a file that can be imported on another computer.',
     exportDo: 'Save file', exported: 'Export saved: {0}',
@@ -333,7 +344,7 @@ const I18N = {
     orphans: '{0} stored rating(s) belong to pictures that can no longer be found. They are kept.',
     help: 'Keyboard', helpText: [
       ['← → ↑ ↓', 'Change picture'], ['1 – 5', 'Set stars'], ['0', 'Remove stars'],
-      ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['Del', 'Move to trash'],
+      ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['R', 'Rename by capture time'], ['Del', 'Move to trash'],
       ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['Esc', 'Close / clear selection']],
     heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
     noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
@@ -1048,6 +1059,66 @@ function reportMove(r, key) {
   toast(msg, r.errors.length ? 10000 : 4500);
 }
 
+/* ---------------------------- Umbenennen nach Aufnahmezeit ---------------------------- */
+const pad2 = n => String(n).padStart(2, '0');
+function timeName(f) { // JJJJMMTT_HHMMSS aus EXIF-Zeit (+ Zeitkorrektur), null ohne EXIF
+  if (!f.meta || f.meta.time == null) return null;
+  const d = new Date(f.sortTime);
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}_${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}`;
+}
+function extPart(name) { const i = name.lastIndexOf('.'); return i < 0 ? '' : name.slice(i); }
+function hasTimeName(f, base) { // heißt schon base.ext oder base_N.ext
+  const n = f.name.slice(0, f.name.length - extPart(f.name).length);
+  return n === base || new RegExp('^' + base + '_\\d+$').test(n);
+}
+function planRename(list) {
+  const plan = { todo: [], same: [], noExif: [] };
+  for (const f of list) {
+    if (isTrash(f)) continue;
+    const base = timeName(f);
+    if (!base) plan.noExif.push(f);
+    else if (hasTimeName(f, base)) plan.same.push(f);
+    else plan.todo.push(f);
+  }
+  plan.todo.sort((a, b) => a.sortTime - b.sortTime || a.path.localeCompare(b.path));
+  // Vorschau der Namen inkl. _1, _2 (die echte Prüfung passiert beim Umbenennen)
+  const moving = new Set(plan.todo.map(f => f.path));
+  const taken = new Set(S.files.filter(f => !moving.has(f.path)).map(f => f.path.toLowerCase()));
+  for (const f of plan.todo) {
+    const base = timeName(f), ext = extPart(f.name);
+    let cand = base + ext, n = 0;
+    while (taken.has(joinPath(f.dir, cand).toLowerCase())) cand = `${base}_${++n}${ext}`;
+    taken.add(joinPath(f.dir, cand).toLowerCase()); f.renameTo = cand;
+  }
+  return plan;
+}
+function renameDialog(list) {
+  if (!list.length || S.readOnly) return;
+  const plan = planRename(list);
+  const body = document.createElement('div');
+  const li = (x) => `<li>${esc(x)}</li>`;
+  let html = `<p>${esc(t('renameIntro'))}</p><ul>`;
+  html += li(t('renameWill', plan.todo.length));
+  if (plan.same.length) html += li(t('renameSame', plan.same.length));
+  if (plan.noExif.length) html += li(t('renameNoExif', plan.noExif.length));
+  html += '</ul>';
+  if (plan.todo.length) {
+    html += '<div class="list" id="renList">' + plan.todo.slice(0, 12).map(f => `<div class="it">${esc(f.path)} → <b>${esc(f.renameTo)}</b></div>`).join('') +
+      (plan.todo.length > 12 ? `<div class="it muted">${esc(t('renameMore', plan.todo.length - 12))}</div>` : '') + '</div>';
+  }
+  body.innerHTML = html;
+  const buttons = [[t('cancel'), closeDialog]];
+  if (plan.todo.length) buttons.push([t('renameDo'), async () => {
+    closeDialog();
+    const r = await moveFiles(plan.todo, f => f.dir, f => timeName(f) + extPart(f.name), 'renaming');
+    let msg = t('renamedDone', r.ok);
+    if (r.errors.length) { msg += ' ' + t('moveErrors', r.errors.length, r.errors[0]); console.warn(r.errors); }
+    toast(msg, r.errors.length ? 10000 : 4500);
+  }, 'primary']);
+  else buttons[0] = [t('close'), closeDialog, 'primary'];
+  openDialog(t('renameTitle', list.length), body, buttons);
+}
+
 /* ---------------------------- Verschieben ---------------------------- */
 async function getDir(rel, create) {
   if (S.dirs.has(rel)) return S.dirs.get(rel);
@@ -1082,18 +1153,19 @@ async function moveOne(f, destDir, newName) {
   await f.dirHandle.removeEntry(f.name);
   return nh;
 }
-async function moveFiles(list, destFor) {
+async function moveFiles(list, destFor, nameFor, label = 'moving') {
   const res = { ok: 0, renamed: [], errors: [] };
   const reserved = new Set();
-  progress(t('moving'), 0, list.length);
+  progress(t(label), 0, list.length);
   let k = 0;
   for (const f of list) {
     try {
       const destRel = destFor(f);
-      if (destRel === f.dir) { k++; continue; }
+      const wanted = nameFor ? nameFor(f) : f.name;
+      if (destRel === f.dir && wanted === f.name) { progress(t(label), ++k, list.length); continue; }
       const destDir = await getDir(destRel, true);
-      const newName = await freeName(destDir, destRel, f.name, reserved);
-      if (newName !== f.name) res.renamed.push(`${f.name} → ${newName}`);
+      const newName = await freeName(destDir, destRel, wanted, reserved);
+      if (newName !== wanted) res.renamed.push(`${wanted} → ${newName}`);
       const nh = await moveOne(f, destDir, newName);
       const oldPath = f.path, newPath = joinPath(destRel, newName);
       // Bewertung wandert mit
@@ -1106,7 +1178,7 @@ async function moveFiles(list, destFor) {
       if (f.meta) DB.put('meta', newPath + '|' + f.size + '|' + f.mtime, f.meta);
       res.ok++;
     } catch (e) { res.errors.push(`${f.path}: ${e.message}`); }
-    progress(t('moving'), ++k, list.length);
+    progress(t(label), ++k, list.length);
   }
   progress(null);
   markDirty(); saveNow();
@@ -1351,6 +1423,7 @@ function bind() {
   $('#sNone').onclick = () => { S.selected.clear(); renderAll(); };
   $('#sTags').onclick = () => tagDialog(selectedFiles());
   $('#sMove').onclick = () => moveDialog(selectedFiles());
+  $('#sRename').onclick = () => renameDialog(selectedFiles());
   $('#sTrash').onclick = () => trashFiles(selectedFiles());
   $('#sRestore').onclick = () => restoreFiles(selectedFiles());
 
@@ -1415,6 +1488,7 @@ function onKey(e) {
   else if (/^[0-5]$/.test(k) && !e.ctrlKey && S.mode !== 'trash') setStars(targetFiles(), +k);
   else if ((k === 't' || k === 'T') && S.mode !== 'trash') { e.preventDefault(); tagDialog(targetFiles()); }
   else if ((k === 'm' || k === 'M') && S.mode !== 'trash') { e.preventDefault(); moveDialog(targetFiles()); }
+  else if ((k === 'r' || k === 'R') && !e.ctrlKey && !e.metaKey && S.mode !== 'trash') { e.preventDefault(); renameDialog(targetFiles()); }
   else if (k === 'Delete') { const l = targetFiles(); if (S.mode === 'trash') restoreFiles(l); else trashFiles(l); }
 }
 
