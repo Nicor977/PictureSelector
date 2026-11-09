@@ -49,6 +49,15 @@ header .folder{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:
 #filters{display:flex;gap:12px;align-items:center;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
 #filters label{display:flex;gap:5px;align-items:center;color:var(--muted)}
 #tagFilter{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+#stats{display:flex;gap:6px;align-items:center;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:13px}
+#stats .lbl{color:var(--muted);margin-right:2px}
+#stats .chip b{font-weight:600}
+#stats .chip .st{color:var(--star)}
+#stats .chip.on .st{color:#fff}
+#stats .chip.zero{opacity:.55}
+#stats .bar{display:inline-block;width:36px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;vertical-align:middle}
+#stats .bar i{display:block;height:100%;background:var(--star)}
+#stats .chip.on .bar i{background:#fff}
 .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer;background:var(--panel);font-size:13px;user-select:none}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .chip.some{background:var(--accent-soft);border-color:var(--accent)}
@@ -59,7 +68,7 @@ header .folder{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:
 .tile img{width:100%;height:100%;object-fit:contain;display:block;background:#0001}
 .tile.sel{outline:3px solid var(--sel);outline-offset:-3px}
 .tile.focus::after{content:"";position:absolute;inset:3px;border:2px dashed #fff9;border-radius:4px;pointer-events:none}
-.tile .info{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(transparent,#000a);color:#fff;font-size:12px;display:flex;gap:6px;align-items:flex-end;min-height:24px}
+.tile .info{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(transparent,#000a);color:#fff;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 6px;align-items:flex-end;min-height:24px}
 .tile .stars{display:inline-flex;color:var(--star);font-size:18px;line-height:1;text-shadow:0 0 2px #000;cursor:pointer}
 .tile .stars span{padding:0 1px;opacity:.35;color:#fff}
 .tile .stars span.on{opacity:1;color:var(--star)}
@@ -67,15 +76,22 @@ header .folder{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:
 .tile .stars:hover span{opacity:1;color:var(--star)}
 .tile .stars span:hover ~ span{opacity:.35;color:#fff}
 .trashmode .tile .stars{pointer-events:none}
-.tile .others{opacity:.85}
+.tile .rates{display:flex;flex-direction:column;gap:1px}
+.tile .mrow,.tile .orow{display:flex;align-items:center;gap:4px}
+.tile .orow .who{font-size:11px;line-height:13px;font-weight:600}
+.tile .ostars{font-size:12px;line-height:13px;color:var(--star);text-shadow:0 0 2px #000}
+.tile .ostars span{opacity:.35;color:#fff}
+.tile .ostars span.on{opacity:1;color:var(--star)}
+.tile .who{font-weight:600;font-size:13px;line-height:18px;min-width:14px;text-shadow:0 0 2px #000}
 .tile .tagc{margin-left:auto;background:#0007;border-radius:8px;padding:0 6px}
+.tile .fn{margin-left:auto;max-width:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:right;font-size:11px;opacity:.9;text-shadow:0 0 2px #000}
 .tile .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:6px;word-break:break-all}
 #empty{padding:40px;text-align:center;color:var(--muted)}
 
 /* Viewer */
 #viewer{position:fixed;inset:0;background:#000;color:#fff;display:flex;flex-direction:column;z-index:20}
 #viewer .stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#viewer img{max-width:100%;max-height:100%;object-fit:contain}
+#viewer img{max-width:100%;max-height:100%;object-fit:contain;transition:transform .15s}
 #viewer .nav{position:absolute;top:0;bottom:0;width:12%;display:flex;align-items:center;justify-content:center;font-size:42px;opacity:0;cursor:pointer;user-select:none}
 #viewer .nav:hover{opacity:.7}
 #viewer .nav.prev{left:0} #viewer .nav.next{right:0}
@@ -157,6 +173,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <label title="Größe"><input type="range" id="fSize" min="110" max="420" value="180"></label>
     <span id="count" class="muted"></span>
   </div>
+  <div id="stats" class="hidden"></div>
   <div id="selbar" class="hidden">
     <b id="selCount"></b>
     <button id="sAll" data-t="selectAll"></button>
@@ -165,6 +182,8 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <span class="normalOnly row">
       <button id="sTags" data-t="tags"></button>
       <button id="sMove" data-t="move"></button>
+      <button id="sRename" data-t="renameBtn"></button>
+      <span class="row xf"><button data-xf="left">⟲</button><button data-xf="right">⟳</button><button data-xf="h">⇋</button><button data-xf="v">⇵</button></span>
       <button id="sTrash" class="danger" data-t="toTrash"></button>
     </span>
     <span class="trashOnly row"><button id="sRestore" class="primary" data-t="restore"></button></span>
@@ -188,6 +207,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <span id="vOthers" class="vmeta"></span>
     <span id="vTags" class="row"></span>
     <button id="vTagBtn">+ <span data-t="tag"></span> (T)</button>
+    <span class="row xf"><button data-xf="left">⟲</button><button data-xf="right">⟳</button><button data-xf="h">⇋</button><button data-xf="v">⇵</button></span>
     <span class="spacer"></span>
     <span id="vMeta" class="vmeta"></span>
     <button id="vTrash" class="danger"></button>
@@ -216,6 +236,7 @@ const BAK_FILE = 'pictureselector.bak.json';
 const TRASH = '_Papierkorb';
 const IMG_EXT = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif']);
 const HEIC_EXT = new Set(['heic', 'heif']);
+const JPG_EXT = new Set(['jpg', 'jpeg']);
 const SKIP_DIRS = new Set(['$recycle.bin', 'system volume information', 'node_modules']);
 const THUMB_SIDE = 420;
 const EXIF_OPTS = { tiff: true, exif: true, gps: false, ifd1: false, interop: false, xmp: false, icc: false, iptc: false, jfif: false, ihdr: false, reviveValues: false, translateValues: false };
@@ -231,7 +252,8 @@ const I18N = {
     privacy: 'Es wird nichts hochgeladen. Bewertungen und Tags stehen in der Datei pictureselector.json im gewählten Ordner, die Bilder selbst bleiben unverändert.',
     person: 'Person', export: 'Exportieren', import: 'Importieren', settings: 'Einstellungen',
     folder: 'Ordner', allFolders: 'Alle Ordner', sort: 'Sortierung', sortAsc: 'Älteste zuerst', sortDesc: 'Neueste zuerst',
-    starsAny: 'egal', starsNone: 'unbewertet', starsMin: '≥ {0} ★', starsEq5: '= 5 ★',
+    starsAny: 'egal', starsNone: 'unbewertet', starsMin: '≥ {0} ★', starsEq: '= {0} ★', starsEq5: '= 5 ★',
+    statsFor: 'Übersicht {0}:', statsAll: 'Alle', statsNone: 'ohne ★', statsTip: 'Klicken, um nur diese Bilder zu zeigen (zählt im aktuellen Ordner/Tag-Filter)',
     untagged: 'ohne Tag', count: '{0} von {1} Bildern',
     selected: '{0} ausgewählt', selectAll: 'Alle anzeigen auswählen', selectNone: 'Auswahl aufheben',
     tags: 'Tags …', tag: 'Tag', move: 'Verschieben …', toTrash: 'In Papierkorb', restore: 'Wiederherstellen',
@@ -251,6 +273,13 @@ const I18N = {
     moving: 'Verschiebe Bilder …', moved: '{0} Bild(er) verschoben.', trashed: '{0} Bild(er) in den Papierkorb verschoben.',
     restored: '{0} Bild(er) wiederhergestellt.', renamedOnMove: '{0} wegen gleichem Namen umbenannt (z.B. {1}).',
     moveErrors: '{0} Fehler: {1}',
+    xfLeft: 'Links drehen (Strg+←)', xfRight: 'Rechts drehen (Strg+→)', xfH: 'Horizontal spiegeln (H)', xfV: 'Vertikal spiegeln (V)',
+    xfFileNote: '{0} Datei(en) verlustfrei geändert', xfJsonNote: '{0} Bild(er) nur in der Anzeige gedreht (z.B. HEIC)', xfWorking: 'Drehe Bilder …',
+    renameBtn: 'Umbenennen …', renameTitle: '{0} Bild(er) nach Aufnahmezeit umbenennen',
+    renameIntro: 'Neuer Name: JJJJMMTT_HHMMSS (Aufnahmezeit inkl. Zeitkorrektur der Kamera). Bei gleicher Sekunde wird _1, _2 … angehängt. Vorhandene Dateien werden nie überschrieben, Sterne und Tags wandern mit.',
+    renameWill: '{0} Bild(er) werden umbenannt', renameSame: '{0} heißen schon richtig', renameNoExif: '{0} ohne Aufnahmezeit (EXIF) – bleiben unverändert',
+    renameMore: '… und {0} weitere', renameDo: 'Umbenennen', renameNothing: 'Nichts umzubenennen.',
+    renaming: 'Benenne Bilder um …', renamedDone: '{0} Bild(er) umbenannt.',
     trashConfirm: '{0} Bild(er) in den Ordner „_Papierkorb“ verschieben? Endgültig löschen kannst du später selbst im Explorer.',
     exportTitle: 'Meine Bewertungen exportieren', exportText: 'Exportiert die Sterne von {0} ({1} Bilder) und alle Tags ({2} Bilder) in eine Datei. Diese Datei kann auf einem anderen Computer importiert werden.',
     exportDo: 'Datei speichern', exported: 'Export gespeichert: {0}',
@@ -269,7 +298,7 @@ const I18N = {
     orphans: '{0} gespeicherte Bewertung(en) gehören zu Bildern, die nicht mehr gefunden werden. Sie bleiben erhalten.',
     help: 'Tastatur', helpText: [
       ['← → ↑ ↓', 'Bild wechseln'], ['1 – 5', 'Sterne vergeben'], ['0', 'Sterne entfernen'],
-      ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['Entf', 'In Papierkorb'],
+      ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['R', 'Nach Aufnahmezeit umbenennen'], ['Strg+← / Strg+→', 'Drehen'], ['H / V', 'Spiegeln'], ['Entf', 'In Papierkorb'],
       ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['Esc', 'Schließen / Auswahl aufheben']],
     heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
     noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
@@ -283,7 +312,8 @@ const I18N = {
     privacy: 'Nothing is uploaded. Ratings and tags are stored in pictureselector.json inside the chosen folder; the pictures themselves stay unchanged.',
     person: 'Person', export: 'Export', import: 'Import', settings: 'Settings',
     folder: 'Folder', allFolders: 'All folders', sort: 'Sort', sortAsc: 'Oldest first', sortDesc: 'Newest first',
-    starsAny: 'any', starsNone: 'unrated', starsMin: '≥ {0} ★', starsEq5: '= 5 ★',
+    starsAny: 'any', starsNone: 'unrated', starsMin: '≥ {0} ★', starsEq: '= {0} ★', starsEq5: '= 5 ★',
+    statsFor: 'Overview {0}:', statsAll: 'All', statsNone: 'no ★', statsTip: 'Click to show only these pictures (counted within the current folder/tag filter)',
     untagged: 'untagged', count: '{0} of {1} pictures',
     selected: '{0} selected', selectAll: 'Select all shown', selectNone: 'Clear selection',
     tags: 'Tags …', tag: 'Tag', move: 'Move …', toTrash: 'Move to trash', restore: 'Restore',
@@ -303,6 +333,13 @@ const I18N = {
     moving: 'Moving pictures …', moved: '{0} picture(s) moved.', trashed: '{0} picture(s) moved to trash.',
     restored: '{0} picture(s) restored.', renamedOnMove: '{0} renamed because of an existing name (e.g. {1}).',
     moveErrors: '{0} errors: {1}',
+    xfLeft: 'Rotate left (Ctrl+←)', xfRight: 'Rotate right (Ctrl+→)', xfH: 'Flip horizontally (H)', xfV: 'Flip vertically (V)',
+    xfFileNote: '{0} file(s) changed losslessly', xfJsonNote: '{0} picture(s) rotated in the display only (e.g. HEIC)', xfWorking: 'Rotating pictures …',
+    renameBtn: 'Rename …', renameTitle: 'Rename {0} picture(s) by capture time',
+    renameIntro: 'New name: YYYYMMDD_HHMMSS (capture time incl. camera time correction). Pictures from the same second get _1, _2 … Existing files are never overwritten; stars and tags move along.',
+    renameWill: '{0} picture(s) will be renamed', renameSame: '{0} already have the right name', renameNoExif: '{0} without capture time (EXIF) – left unchanged',
+    renameMore: '… and {0} more', renameDo: 'Rename', renameNothing: 'Nothing to rename.',
+    renaming: 'Renaming pictures …', renamedDone: '{0} picture(s) renamed.',
     trashConfirm: 'Move {0} picture(s) to the "_Papierkorb" folder? You can delete them permanently later in Explorer.',
     exportTitle: 'Export my ratings', exportText: 'Exports the stars of {0} ({1} pictures) and all tags ({2} pictures) to a file that can be imported on another computer.',
     exportDo: 'Save file', exported: 'Export saved: {0}',
@@ -321,7 +358,7 @@ const I18N = {
     orphans: '{0} stored rating(s) belong to pictures that can no longer be found. They are kept.',
     help: 'Keyboard', helpText: [
       ['← → ↑ ↓', 'Change picture'], ['1 – 5', 'Set stars'], ['0', 'Remove stars'],
-      ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['Del', 'Move to trash'],
+      ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['R', 'Rename by capture time'], ['Ctrl+← / Ctrl+→', 'Rotate'], ['H / V', 'Flip'], ['Del', 'Move to trash'],
       ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['Esc', 'Close / clear selection']],
     heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
     noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
@@ -338,6 +375,7 @@ function t(key, ...a) {
 function applyLang() {
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll('[data-xf]').forEach(b => { b.title = t({ left: 'xfLeft', right: 'xfRight', h: 'xfH', v: 'xfV' }[b.dataset.xf]); });
   $('#langStart').value = LANG;
   const so = $('#fSort').options; so[0].textContent = t('sortAsc'); so[1].textContent = t('sortDesc');
   if (S.root) { renderFilters(); renderAll(); }
@@ -590,7 +628,7 @@ function entryOf(f, create) {
 }
 function pruneEntry(f) {
   const e = S.data.images[f.path];
-  if (e && !Object.keys(e.stars).length && !e.tags.length) delete S.data.images[f.path];
+  if (e && !Object.keys(e.stars).length && !e.tags.length && !e.orient) delete S.data.images[f.path];
 }
 function starsOf(f, person = S.person) { const e = S.data.images[f.path]; return (e && e.stars[person]) || 0; }
 function tagsOf(f) { const e = S.data.images[f.path]; return e ? e.tags : []; }
@@ -603,7 +641,7 @@ function setStars(list, n) {
     pruneZero(f);
     updateTile(f);
   }
-  markDirty();
+  markDirty(); renderStats();
 }
 function pruneZero(f) { /* Einträge nur mit 0-Sternen und ohne Tags bleiben bis zum nächsten Export erhalten */ pruneEntry(f); }
 function toggleTag(list, tag, on) {
@@ -664,7 +702,7 @@ function renderFilters() {
     const l = document.createElement('label');
     l.innerHTML = `<span>${esc(p)}</span>`;
     const s = document.createElement('select');
-    [['any', t('starsAny')], ['none', t('starsNone')], ['1', t('starsMin', 1)], ['2', t('starsMin', 2)], ['3', t('starsMin', 3)], ['4', t('starsMin', 4)], ['5', t('starsEq5')]]
+    [['any', t('starsAny')], ['none', t('starsNone')], ['1', t('starsMin', 1)], ['2', t('starsMin', 2)], ['3', t('starsMin', 3)], ['4', t('starsMin', 4)], ['5', t('starsEq5')], ['e1', t('starsEq', 1)], ['e2', t('starsEq', 2)], ['e3', t('starsEq', 3)], ['e4', t('starsEq', 4)]]
       .forEach(([v, x]) => s.add(new Option(x, v)));
     s.value = S.filter.stars[p] || 'any';
     s.onchange = () => { S.filter.stars[p] = s.value; renderAll(); };
@@ -687,25 +725,58 @@ function renderTagFilter() {
   u.onclick = () => { S.filter.untagged = !S.filter.untagged; if (S.filter.untagged) S.filter.tags.clear(); renderTagFilter(); renderAll(); };
   box.appendChild(u);
 }
-function computeView() {
+function computeView(ignoreStarsOf) {
   const F = S.filter;
   const v = S.files.filter(f => {
     if (S.mode === 'trash') return isTrash(f);
     if (isTrash(f)) return false;
     if (F.folder && !(f.dir === F.folder || f.dir.startsWith(F.folder + '/'))) return false;
     for (const p of S.data.people) {
+      if (p === ignoreStarsOf) continue;
       const c = F.stars[p]; if (!c || c === 'any') continue;
       const n = starsOf(f, p);
-      if (c === 'none' ? n !== 0 : n < +c) return false;
+      if (c === 'none' ? n !== 0 : c[0] === 'e' ? n !== +c.slice(1) : n < +c) return false;
     }
     const tg = tagsOf(f);
     if (F.untagged && tg.length) return false;
     for (const x of F.tags) if (!tg.includes(x)) return false;
     return true;
   });
+  if (ignoreStarsOf) return v;
   const dir = F.sort === 'desc' ? -1 : 1;
   v.sort((a, b) => (a.sortTime - b.sortTime) * dir || a.path.localeCompare(b.path));
   return v;
+}
+
+/* ---------------------------- Übersicht Sterne ---------------------------- */
+// Zählt die Bilder der aktuellen Person nach Sternen. Basis: alle übrigen Filter
+// (Ordner, Tags, Sterne anderer Personen), aber nicht der eigene Sterne-Filter,
+// damit man zwischen den Stufen hin- und herklicken kann.
+function renderStats() {
+  const box = $('#stats');
+  if (!S.data || !S.person || S.mode === 'trash') { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const base = computeView(S.person);
+  const cnt = [0, 0, 0, 0, 0, 0];
+  for (const f of base) cnt[starsOf(f)]++;
+  const total = base.length;
+  const cur = S.filter.stars[S.person] || 'any';
+  const items = [['any', `${esc(t('statsAll'))} <b>${total}</b>`, total, null],
+    ['none', `${esc(t('statsNone'))} <b>${cnt[0]}</b>`, cnt[0], 0]];
+  for (let i = 1; i <= 5; i++) items.push([i === 5 ? '5' : 'e' + i, `<span class="st">${'★'.repeat(i)}</span> <b>${cnt[i]}</b>`, cnt[i], i]);
+  box.innerHTML = `<span class="lbl">${esc(t('statsFor', S.person))}</span>`;
+  for (const [v, html, n, lvl] of items) {
+    const c = document.createElement('span');
+    c.className = 'chip' + (cur === v ? ' on' : '') + (n ? '' : ' zero');
+    c.dataset.v = v; c.title = t('statsTip');
+    const pct = total ? Math.round(n / total * 100) : 0;
+    c.innerHTML = html + (lvl != null ? ` <span class="bar"><i style="width:${pct}%"></i></span>` : '');
+    c.onclick = () => {
+      S.filter.stars[S.person] = (cur === v && v !== 'any') ? 'any' : v;
+      renderFilters(); renderAll(); $('#main').scrollTop = 0;
+    };
+    box.appendChild(c);
+  }
 }
 
 /* ---------------------------- Raster ---------------------------- */
@@ -731,6 +802,7 @@ function renderAll() {
   $('#count').textContent = t('count', S.view.length, total);
   $('#btnTrashView').textContent = S.mode === 'trash' ? t('backToPhotos') : t('trashView', S.files.filter(isTrash).length);
   document.body.classList.toggle('trashmode', S.mode === 'trash');
+  renderStats();
   document.querySelectorAll('.normalOnly').forEach(e => e.classList.toggle('hidden', S.mode === 'trash'));
   document.querySelectorAll('.trashOnly').forEach(e => e.classList.toggle('hidden', S.mode !== 'trash'));
   updateSelUi();
@@ -738,18 +810,32 @@ function renderAll() {
 function fillTile(f) {
   const d = f.tile; if (!d) return;
   const mine = starsOf(f);
-  const others = S.data.people.filter(p => p !== S.person && starsOf(f, p)).map(p => `${esc(p[0])}:${starsOf(f, p)}`).join(' ');
+  // weitere Bewertungen darunter, je Person: Anfangsbuchstabe + Sterne (nur Anzeige)
+  const others = S.data.people.filter(p => p !== S.person && starsOf(f, p)).map(p => { const n = starsOf(f, p);
+    return `<div class="orow" title="${esc(p)}: ${n} ★"><span class="who">${esc(p[0])}:</span><span class="ostars">${[1, 2, 3, 4, 5].map(i => `<span class="${i <= n ? 'on' : ''}">★</span>`).join('')}</span></div>`; }).join('');
   const tg = tagsOf(f);
   d.title = f.path + (tg.length ? '\n' + tg.join(', ') : '');
   d.classList.toggle('sel', S.selected.has(f.path));
-  d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt="">` : `<div class="ph">${f.thumbErr ? '⚠ ' : ''}${esc(f.name)}</div>`) +
-    `<div class="info"><span class="stars">${[1, 2, 3, 4, 5].map(i => `<span data-s="${i}" class="${i <= mine ? 'on' : ''}" title="${i} ★">★</span>`).join('')}</span><span class="others">${others}</span>${tg.length ? `<span class="tagc">🏷 ${tg.length}</span>` : ''}</div>`;
+  const xs = xfCss(viewOrient(f));
+  d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt=""${xs ? ` style="transform:${xs}"` : ''}>` : `<div class="ph">${f.thumbErr ? '⚠ ' : ''}${esc(f.name)}</div>`) +
+    `<div class="info"><div class="rates"><div class="mrow"><span class="who" title="${esc(S.person)}">${esc(S.person[0])}:</span><span class="stars">${[1, 2, 3, 4, 5].map(i => `<span data-s="${i}" class="${i <= mine ? 'on' : ''}" title="${i} ★">★</span>`).join('')}</span></div>${others}</div>${tg.length ? `<span class="tagc">🏷 ${tg.length}</span>` : ''}<span class="fn"></span></div>`;
+  if (f.vis) fitName(f);
 }
+// Dateiname rechtsbündig; passt der ganze Pfad nicht, wird der Ordner zu "…\"
+function fitName(f) {
+  const el = f.tile && f.tile.querySelector('.fn'); if (!el) return;
+  const full = f.path.replace(/\//g, '\\');
+  el.title = full;
+  el.textContent = full;
+  if (f.dir && el.scrollWidth > el.clientWidth) el.textContent = '…\\' + f.name;
+}
+function refitVisible() { for (const f of S.view) if (f.vis) fitName(f); }
 function updateTile(f) { if (f.tile && f.tile.isConnected) fillTile(f); }
 function onIntersect(entries) {
   for (const en of entries) {
     const f = S.view[+en.target.dataset.i]; if (!f) continue;
-    if (en.isIntersecting) { if (!f.thumbUrl && !f.thumbErr) Thumbs.want(f); }
+    f.vis = en.isIntersecting;
+    if (en.isIntersecting) { fitName(f); if (!f.thumbUrl && !f.thumbErr) Thumbs.want(f); }
     else Thumbs.unwant(f);
   }
 }
@@ -900,7 +986,7 @@ async function showViewer() {
   try {
     const url = await fullUrl(f);
     if (token !== V.token) return;
-    $('#vImg').src = url; $('#vImg').style.opacity = 1;
+    $('#vImg').src = url; $('#vImg').style.opacity = 1; applyViewerXf(f);
   } catch (e) { if (token === V.token) { $('#vImg').removeAttribute('src'); toast(e.message); } }
   if (token === V.token) $('#vLoading').classList.add('hidden');
   const n = S.view[V.idx + 1]; if (n) fullUrl(n).catch(() => { });
@@ -1002,6 +1088,219 @@ function reportMove(r, key) {
   toast(msg, r.errors.length ? 10000 : 4500);
 }
 
+/* ---------------------------- Drehen und Spiegeln ---------------------------- */
+// Eine Lage = Drehung r (Vierteldrehungen im Uhrzeigersinn) nach Spiegelung f (horizontal).
+// EXIF-Orientation 1–8 als [r, f]:
+const ORI = { 1: [0, 0], 2: [0, 1], 3: [2, 0], 4: [2, 1], 5: [3, 1], 6: [1, 0], 7: [1, 1], 8: [3, 0] };
+const oriOf = (r, f) => +Object.keys(ORI).find(k => ORI[k][0] === ((r % 4) + 4) % 4 && ORI[k][1] === f);
+function applyOp(o, op) { // neue Lage nach Drehen/Spiegeln in Bildschirmrichtung
+  let [r, f] = ORI[o || 1] || [0, 0];
+  if (op === 'right') r += 1; else if (op === 'left') r += 3;
+  else if (op === 'h') { r = -r; f ^= 1; } else if (op === 'v') { r = 2 - r; f ^= 1; }
+  return oriOf(r, f);
+}
+const viewOrient = f => { const e = S.data && S.data.images[f.path]; return (e && e.orient) || 1; }; // nur Anzeige (HEIC)
+function xfCss(o) { const [r, f] = ORI[o] || [0, 0]; return ((r ? `rotate(${r * 90}deg)` : '') + (f ? ' scaleX(-1)' : '')).trim(); }
+function applyViewerXf(f) {
+  const img = $('#vImg'), o = viewOrient(f), [r] = ORI[o];
+  img.style.transform = xfCss(o);
+  const st = $('#viewer .stage');
+  if (r % 2) { img.style.maxWidth = st.clientHeight + 'px'; img.style.maxHeight = st.clientWidth + 'px'; }
+  else { img.style.maxWidth = ''; img.style.maxHeight = ''; }
+}
+function xfKey(e) {
+  const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && k === 'ArrowLeft') return 'left';
+  if ((e.ctrlKey || e.metaKey) && k === 'ArrowRight') return 'right';
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+  if (k === 'h' || k === 'H') return 'h';
+  if (k === 'v' || k === 'V') return 'v';
+  return null;
+}
+// Sucht in einer JPG-Datei das EXIF-Feld Orientation (Position, Byte-Reihenfolge, Wert) oder null.
+function findJpegOrientation(buf) {
+  const b = new DataView(buf);
+  if (b.byteLength < 4 || b.getUint16(0) !== 0xFFD8) return null;
+  let p = 2;
+  while (p + 4 <= b.byteLength) {
+    if (b.getUint8(p) !== 0xFF) return null;
+    const mk = b.getUint8(p + 1), len = b.getUint16(p + 2);
+    if (mk === 0xDA || mk === 0xD9) return { noExif: true }; // Bilddaten beginnen, kein EXIF gefunden
+    if (mk === 0xE1 && len >= 16 && b.getUint32(p + 4) === 0x45786966 && b.getUint16(p + 8) === 0) {
+      const t = p + 10; const le = b.getUint16(t) === 0x4949;
+      const u16 = o => b.getUint16(o, le), u32 = o => b.getUint32(o, le);
+      if (u16(t + 2) !== 42) return null;
+      const ifd = t + u32(t + 4); if (ifd + 2 > b.byteLength) return null;
+      const n = u16(ifd);
+      for (let i = 0; i < n; i++) {
+        const en = ifd + 2 + i * 12; if (en + 12 > b.byteLength) return null;
+        if (u16(en) === 0x0112 && u16(en + 2) === 3 && u32(en + 4) === 1) return { pos: en + 8, le, value: u16(en + 8) };
+      }
+      return null;
+    }
+    p += 2 + len;
+  }
+  return null;
+}
+async function afterFileChange(f, nf) { // Metadaten nach Änderung der Datei auffrischen
+  f.size = nf.size; f.mtime = nf.lastModified;
+  if (f.meta) {
+    f.meta = Object.assign({}, f.meta);
+    try { f.meta.quick = nf.size + '|' + fnv1a(await nf.slice(0, 65536).arrayBuffer()); } catch { }
+    DB.put('meta', f.path + '|' + f.size + '|' + f.mtime, f.meta);
+    const e = S.data.images[f.path]; if (e) e.id = idOf(f);
+  }
+}
+// JPG: nur die 2 Byte der EXIF-Orientation ändern (verlustfrei)
+async function writeJpegOrientation(f, op) {
+  const file = await f.handle.getFile();
+  const at = findJpegOrientation(await file.slice(0, 131072).arrayBuffer()); if (!at) return false;
+  if (at.noExif) return insertJpegOrientation(f, file, applyOp(1, op));
+  const nv = applyOp(at.value >= 1 && at.value <= 8 ? at.value : 1, op);
+  const bytes = new Uint8Array(2); new DataView(bytes.buffer).setUint16(0, nv, at.le);
+  const w = await f.handle.createWritable({ keepExistingData: true });
+  try { await w.write({ type: 'write', position: at.pos, data: bytes }); await w.close(); }
+  catch (e) { try { await w.abort(); } catch { } throw e; }
+  const nf = await f.handle.getFile();
+  if (nf.size !== file.size) throw new Error('Größe verändert: ' + f.path);
+  await afterFileChange(f, nf);
+  if (f.meta) f.meta.orient = nv;
+  return true;
+}
+// JPG ganz ohne EXIF (z.B. WhatsApp): kleinen EXIF-Block nur mit Orientation einfügen, Bilddaten bleiben unverändert
+async function insertJpegOrientation(f, file, nv) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let p = 2;
+  if (buf[p] === 0xFF && buf[p + 1] === 0xE0) p += 2 + ((buf[p + 2] << 8) | buf[p + 3]); // JFIF-Block muss vorne bleiben
+  const tiff = [0x49, 0x49, 0x2A, 0x00, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, nv, 0, 0, 0, 0, 0, 0, 0];
+  const body = [0x45, 0x78, 0x69, 0x66, 0, 0, ...tiff];
+  const seg = new Uint8Array([0xFF, 0xE1, (body.length + 2) >> 8, (body.length + 2) & 255, ...body]);
+  const blob = new Blob([buf.subarray(0, p), seg, buf.subarray(p)], { type: 'image/jpeg' });
+  const w = await f.handle.createWritable();
+  try { await w.write(blob); await w.close(); } catch (e) { try { await w.abort(); } catch { } throw e; }
+  const nf = await f.handle.getFile();
+  if (nf.size !== file.size + seg.length) throw new Error('Speichern unvollständig: ' + f.path);
+  await afterFileChange(f, nf);
+  if (f.meta) f.meta.orient = nv;
+  return true;
+}
+// PNG: Pixel drehen/spiegeln und wieder als PNG speichern (PNG ist verlustfrei)
+async function rewritePng(f, op) {
+  const file = await f.handle.getFile();
+  const bmp = await createImageBitmap(file, { imageOrientation: 'none', premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  const turn = op === 'left' || op === 'right';
+  const c = document.createElement('canvas'); c.width = turn ? bmp.height : bmp.width; c.height = turn ? bmp.width : bmp.height;
+  const g = c.getContext('2d');
+  if (op === 'right') { g.translate(c.width, 0); g.rotate(Math.PI / 2); }
+  else if (op === 'left') { g.translate(0, c.height); g.rotate(-Math.PI / 2); }
+  else if (op === 'h') { g.translate(c.width, 0); g.scale(-1, 1); }
+  else if (op === 'v') { g.translate(0, c.height); g.scale(1, -1); }
+  g.drawImage(bmp, 0, 0); bmp.close();
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  if (!blob || !blob.size) throw new Error('PNG konnte nicht erzeugt werden: ' + f.path);
+  const w = await f.handle.createWritable();
+  try { await w.write(blob); await w.close(); } catch (e) { try { await w.abort(); } catch { } throw e; }
+  const nf = await f.handle.getFile();
+  if (nf.size !== blob.size) throw new Error('Speichern unvollständig: ' + f.path);
+  await afterFileChange(f, nf);
+  if (f.meta && turn) { const w0 = f.meta.w; f.meta.w = f.meta.h; f.meta.h = w0; }
+  return true;
+}
+let xfBusy = false;
+async function transformFiles(list, op) {
+  if (!list.length || S.readOnly || xfBusy) return;
+  xfBusy = true;
+  const res = { file: 0, json: 0, errors: [] };
+  if (list.length > 3) progress(t('xfWorking'), 0, list.length);
+  let k = 0;
+  for (const f of list) {
+    try {
+      const shown = S.data.images[f.path] && S.data.images[f.path].orient; // schon nur in der Anzeige gedreht
+      let done = false;
+      if (!shown && JPG_EXT.has(f.ext)) done = await writeJpegOrientation(f, op);
+      else if (!shown && f.ext === 'png') done = await rewritePng(f, op);
+      if (done) {
+        res.file++;
+        if (f.thumbUrl) { URL.revokeObjectURL(f.thumbUrl); f.thumbUrl = null; }
+        for (const [ck, u] of V.cache) if (ck.startsWith(f.path + '|')) { URL.revokeObjectURL(u); V.cache.delete(ck); }
+        if (f.vis) Thumbs.want(f);
+      } else {
+        const e = entryOf(f, true); const o = applyOp(e.orient || 1, op);
+        if (o === 1) delete e.orient; else e.orient = o;
+        pruneEntry(f); res.json++;
+      }
+      updateTile(f);
+    } catch (e) { res.errors.push(`${f.path}: ${e.message}`); }
+    if (list.length > 3) progress(t('xfWorking'), ++k, list.length);
+  }
+  if (list.length > 3) progress(null);
+  if (res.json || res.file) markDirty();
+  xfBusy = false;
+  if (V.open && list.includes(S.view[V.idx])) showViewer();
+  if (res.errors.length) { toast(t('moveErrors', res.errors.length, res.errors[0]), 10000); console.warn(res.errors); }
+  else if (list.length > 1) toast([res.file ? t('xfFileNote', res.file) : '', res.json ? t('xfJsonNote', res.json) : ''].filter(Boolean).join(' · '));
+}
+
+/* ---------------------------- Umbenennen nach Aufnahmezeit ---------------------------- */
+const pad2 = n => String(n).padStart(2, '0');
+function timeName(f) { // JJJJMMTT_HHMMSS aus EXIF-Zeit (+ Zeitkorrektur), null ohne EXIF
+  if (!f.meta || f.meta.time == null) return null;
+  const d = new Date(f.sortTime);
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}_${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}`;
+}
+function extPart(name) { const i = name.lastIndexOf('.'); return i < 0 ? '' : name.slice(i); }
+function hasTimeName(f, base) { // heißt schon base.ext oder base_N.ext
+  const n = f.name.slice(0, f.name.length - extPart(f.name).length);
+  return n === base || new RegExp('^' + base + '_\\d+$').test(n);
+}
+function planRename(list) {
+  const plan = { todo: [], same: [], noExif: [] };
+  for (const f of list) {
+    if (isTrash(f)) continue;
+    const base = timeName(f);
+    if (!base) plan.noExif.push(f);
+    else if (hasTimeName(f, base)) plan.same.push(f);
+    else plan.todo.push(f);
+  }
+  plan.todo.sort((a, b) => a.sortTime - b.sortTime || a.path.localeCompare(b.path));
+  // Vorschau der Namen inkl. _1, _2 (die echte Prüfung passiert beim Umbenennen)
+  const moving = new Set(plan.todo.map(f => f.path));
+  const taken = new Set(S.files.filter(f => !moving.has(f.path)).map(f => f.path.toLowerCase()));
+  for (const f of plan.todo) {
+    const base = timeName(f), ext = extPart(f.name);
+    let cand = base + ext, n = 0;
+    while (taken.has(joinPath(f.dir, cand).toLowerCase())) cand = `${base}_${++n}${ext}`;
+    taken.add(joinPath(f.dir, cand).toLowerCase()); f.renameTo = cand;
+  }
+  return plan;
+}
+function renameDialog(list) {
+  if (!list.length || S.readOnly) return;
+  const plan = planRename(list);
+  const body = document.createElement('div');
+  const li = (x) => `<li>${esc(x)}</li>`;
+  let html = `<p>${esc(t('renameIntro'))}</p><ul>`;
+  html += li(t('renameWill', plan.todo.length));
+  if (plan.same.length) html += li(t('renameSame', plan.same.length));
+  if (plan.noExif.length) html += li(t('renameNoExif', plan.noExif.length));
+  html += '</ul>';
+  if (plan.todo.length) {
+    html += '<div class="list" id="renList">' + plan.todo.slice(0, 12).map(f => `<div class="it">${esc(f.path)} → <b>${esc(f.renameTo)}</b></div>`).join('') +
+      (plan.todo.length > 12 ? `<div class="it muted">${esc(t('renameMore', plan.todo.length - 12))}</div>` : '') + '</div>';
+  }
+  body.innerHTML = html;
+  const buttons = [[t('cancel'), closeDialog]];
+  if (plan.todo.length) buttons.push([t('renameDo'), async () => {
+    closeDialog();
+    const r = await moveFiles(plan.todo, f => f.dir, f => timeName(f) + extPart(f.name), 'renaming');
+    let msg = t('renamedDone', r.ok);
+    if (r.errors.length) { msg += ' ' + t('moveErrors', r.errors.length, r.errors[0]); console.warn(r.errors); }
+    toast(msg, r.errors.length ? 10000 : 4500);
+  }, 'primary']);
+  else buttons[0] = [t('close'), closeDialog, 'primary'];
+  openDialog(t('renameTitle', list.length), body, buttons);
+}
+
 /* ---------------------------- Verschieben ---------------------------- */
 async function getDir(rel, create) {
   if (S.dirs.has(rel)) return S.dirs.get(rel);
@@ -1036,18 +1335,19 @@ async function moveOne(f, destDir, newName) {
   await f.dirHandle.removeEntry(f.name);
   return nh;
 }
-async function moveFiles(list, destFor) {
+async function moveFiles(list, destFor, nameFor, label = 'moving') {
   const res = { ok: 0, renamed: [], errors: [] };
   const reserved = new Set();
-  progress(t('moving'), 0, list.length);
+  progress(t(label), 0, list.length);
   let k = 0;
   for (const f of list) {
     try {
       const destRel = destFor(f);
-      if (destRel === f.dir) { k++; continue; }
+      const wanted = nameFor ? nameFor(f) : f.name;
+      if (destRel === f.dir && wanted === f.name) { progress(t(label), ++k, list.length); continue; }
       const destDir = await getDir(destRel, true);
-      const newName = await freeName(destDir, destRel, f.name, reserved);
-      if (newName !== f.name) res.renamed.push(`${f.name} → ${newName}`);
+      const newName = await freeName(destDir, destRel, wanted, reserved);
+      if (newName !== wanted) res.renamed.push(`${wanted} → ${newName}`);
       const nh = await moveOne(f, destDir, newName);
       const oldPath = f.path, newPath = joinPath(destRel, newName);
       // Bewertung wandert mit
@@ -1060,7 +1360,7 @@ async function moveFiles(list, destFor) {
       if (f.meta) DB.put('meta', newPath + '|' + f.size + '|' + f.mtime, f.meta);
       res.ok++;
     } catch (e) { res.errors.push(`${f.path}: ${e.message}`); }
-    progress(t('moving'), ++k, list.length);
+    progress(t(label), ++k, list.length);
   }
   progress(null);
   markDirty(); saveNow();
@@ -1290,7 +1590,8 @@ function bind() {
   $('#langStart').onchange = e => setLang(e.target.value);
   $('#fFolder').onchange = e => { S.filter.folder = e.target.value; renderAll(); };
   $('#fSort').onchange = e => { S.filter.sort = e.target.value; renderAll(); };
-  $('#fSize').oninput = e => { document.documentElement.style.setProperty('--tile', e.target.value + 'px'); try { localStorage.setItem('ps.tile', e.target.value); } catch { } };
+  $('#fSize').oninput = e => { document.documentElement.style.setProperty('--tile', e.target.value + 'px'); try { localStorage.setItem('ps.tile', e.target.value); } catch { } refitVisible(); };
+  window.addEventListener('resize', () => { clearTimeout(window.__rf); window.__rf = setTimeout(refitVisible, 150); });
   $('#personSel').onchange = e => {
     if (e.target.value === '__new') { const n = (prompt(t('newPersonName')) || '').trim(); if (n) { addPerson(n); setPerson(n); } else renderPersonSel(); }
     else setPerson(e.target.value);
@@ -1305,6 +1606,10 @@ function bind() {
   $('#sNone').onclick = () => { S.selected.clear(); renderAll(); };
   $('#sTags').onclick = () => tagDialog(selectedFiles());
   $('#sMove').onclick = () => moveDialog(selectedFiles());
+  $('#sRename').onclick = () => renameDialog(selectedFiles());
+  document.querySelectorAll('[data-xf]').forEach(b => {
+    b.onclick = () => transformFiles(V.open ? [S.view[V.idx]].filter(Boolean) : selectedFiles(), b.dataset.xf);
+  });
   $('#sTrash').onclick = () => trashFiles(selectedFiles());
   $('#sRestore').onclick = () => restoreFiles(selectedFiles());
 
@@ -1345,7 +1650,8 @@ function onKey(e) {
   const k = e.key;
   if (V.open) {
     const f = S.view[V.idx];
-    if (k === 'ArrowRight' || k === ' ') { viewerStep(1); e.preventDefault(); }
+    if (xfKey(e)) { e.preventDefault(); transformFiles([f], xfKey(e)); }
+    else if (k === 'ArrowRight' || k === ' ') { viewerStep(1); e.preventDefault(); }
     else if (k === 'ArrowLeft') { viewerStep(-1); e.preventDefault(); }
     else if (k === 'Escape' || k === 'Enter') closeViewer();
     else if (/^[0-5]$/.test(k) && !e.ctrlKey) { setStars([f], +k); renderViewerBar(); }
@@ -1357,7 +1663,8 @@ function onKey(e) {
   }
   const mode = e.shiftKey ? 'range' : 'single';
   const cols = () => columns();
-  if (k === 'ArrowRight') { setFocus(S.focus + 1, mode); e.preventDefault(); }
+  if (xfKey(e) && S.mode !== 'trash') { e.preventDefault(); transformFiles(targetFiles(), xfKey(e)); }
+  else if (k === 'ArrowRight') { setFocus(S.focus + 1, mode); e.preventDefault(); }
   else if (k === 'ArrowLeft') { setFocus(S.focus - 1, mode); e.preventDefault(); }
   else if (k === 'ArrowDown') { setFocus(S.focus < 0 ? 0 : S.focus + cols(), mode); e.preventDefault(); }
   else if (k === 'ArrowUp') { setFocus(S.focus - cols(), mode); e.preventDefault(); }
@@ -1369,6 +1676,7 @@ function onKey(e) {
   else if (/^[0-5]$/.test(k) && !e.ctrlKey && S.mode !== 'trash') setStars(targetFiles(), +k);
   else if ((k === 't' || k === 'T') && S.mode !== 'trash') { e.preventDefault(); tagDialog(targetFiles()); }
   else if ((k === 'm' || k === 'M') && S.mode !== 'trash') { e.preventDefault(); moveDialog(targetFiles()); }
+  else if ((k === 'r' || k === 'R') && !e.ctrlKey && !e.metaKey && S.mode !== 'trash') { e.preventDefault(); renameDialog(targetFiles()); }
   else if (k === 'Delete') { const l = targetFiles(); if (S.mode === 'trash') restoreFiles(l); else trashFiles(l); }
 }
 

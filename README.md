@@ -14,15 +14,17 @@ Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
 
 - Liest alle Unterordner ein: `.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`. Videos und andere Dateien werden ignoriert.
 - Sortiert alle Bilder nach Aufnahmezeit (EXIF), über alle Kameras und Handys hinweg. Ohne EXIF zählt das Dateidatum. Zeitkorrektur pro Kamera unter *Einstellungen*.
-- Raster mit Vorschaubildern (werden im Browser zwischengespeichert) und Einzelansicht.
+- Raster mit Vorschaubildern: unten links die eigenen Sterne mit Anfangsbuchstaben (z.B. „N:“), darunter die Sterne der anderen (z.B. „S:“), unten rechts der Dateiname (bei Platzmangel wird der Ordner zu „…\“). Vorschaubilder (werden im Browser zwischengespeichert) und Einzelansicht.
 - **Sterne pro Person** (1–5), **Tags gemeinsam**. Filter nach Ordner, Sternen jeder Person (z.B. „Nico ≥ 4 und Simone ≥ 4“) und Tags.
+- **Sterne-Übersicht** unter den Filtern: wie viele Bilder es gibt, wie viele davon ohne Sterne und wie viele mit 1, 2, 3, 4 oder 5 Sternen – für die gewählte Person und passend zum Ordner-/Tag-Filter. Ein Klick auf eine Zahl zeigt genau diese Bilder, ein zweiter Klick hebt den Filter wieder auf. Im Sterne-Filter gibt es dafür zusätzlich „= 1 ★“ bis „= 4 ★“.
+- **Drehen und Spiegeln** (⟲ ⟳ ⇋ ⇵ in der Auswahlleiste und Einzelansicht, Strg+← / Strg+→, H, V): Bei JPG ändert das Tool nur die EXIF-Dreh-Kennzeichnung (verlustfrei, Explorer und andere Programme sehen es); JPG ganz ohne EXIF (z.B. WhatsApp) bekommt einen kleinen EXIF-Block. PNG wird pixelgenau neu gespeichert (PNG ist verlustfrei). HEIC wird nur in der Anzeige gedreht und das in `pictureselector.json` gemerkt (`"orient"`).
 - **Verschieben** in einen Zielordner innerhalb des Hauptordners (auch neu anlegen). Gibt es den Namen im Ziel schon, wird `_1`, `_2` … angehängt, nie überschrieben.
 - **Löschen = Verschieben nach `_Papierkorb/`** mit Ursprungspfad. In der Papierkorb-Ansicht kann man Bilder wiederherstellen. Endgültig löschen macht man selbst im Explorer.
 - **Export/Import**: „Exportieren“ speichert die eigenen Sterne und alle Tags in eine Datei (z.B. `bewertungen-simone-2026-11-08.json`). Auf dem anderen Computer „Importieren“: Die Bilder werden über ihren Fingerabdruck zugeordnet, die Ordnerstruktur darf abweichen. Ein Import ändert nur die Sterne der exportierenden Person; Tags werden ergänzt.
 - **Wiedererkennung** umbenannter oder verschobener Bilder: über Dateigröße + Prüfsumme der ersten 64 KB, sonst über EXIF (Aufnahmezeit mit Sekundenbruchteil, Hersteller, Modell, Bildgröße). Passen mehrere Bilder, fragt das Tool nach.
 - Oberfläche auf Deutsch und Englisch.
 
-Umbenennen nach Aufnahmezeit (`YYYYMMDD_HHmmss`) kommt in Version 2.
+- **Umbenennen nach Aufnahmezeit**: Bilder auswählen, „Umbenennen …“ (oder Taste R). Neuer Name `YYYYMMDD_HHmmss` aus der EXIF-Aufnahmezeit inkl. Zeitkorrektur der Kamera, Bilder aus derselben Sekunde bekommen `_1`, `_2` …, vorhandene Dateien werden nie überschrieben. Vorher zeigt eine Vorschau alle neuen Namen. Bilder ohne EXIF-Zeit (z.B. WhatsApp, Screenshots) bleiben unverändert, Bilder mit passendem Namen werden übersprungen. Sterne und Tags wandern mit.
 
 ## Tastatur
 
@@ -33,13 +35,16 @@ Umbenennen nach Aufnahmezeit (`YYYYMMDD_HHmmss`) kommt in Version 2.
 | Enter, Doppelklick | Einzelansicht |
 | T | Tags |
 | M | Verschieben |
+| R | Nach Aufnahmezeit umbenennen |
+| Strg+← / Strg+→ | Links / rechts drehen |
+| H / V | Horizontal / vertikal spiegeln |
 | Entf | In den Papierkorb |
 | Strg+A | Alle angezeigten auswählen |
 | Esc | Schließen / Auswahl aufheben |
 
 ## Datenablage
 
-Alles steht in `pictureselector.json` im gewählten Hauptordner, die Bilder selbst werden nie verändert. Vor jedem Speichern wird der vorige Stand nach `pictureselector.bak.json` gesichert.
+Alles steht in `pictureselector.json` im gewählten Hauptordner. Die Bilder selbst ändert das Tool nur, wenn du es ausdrücklich willst: Verschieben, Umbenennen, Drehen/Spiegeln. Vor jedem Speichern wird der vorige Stand nach `pictureselector.bak.json` gesichert.
 
 ```json
 {
