@@ -243,6 +243,17 @@ check(names[0] === 'Auswahl/IMG_0001.jpg' && names[1] === '2025/Kroatien/IMG_000
 check((await page.textContent('#btnExport')) === 'Export', 'Oberfläche auf Englisch');
 await page.screenshot({ path: 'tests/shot-en.png' });
 
+console.log('11b) Ordneranzeige in der Kopfzeile');
+check((await page.$$eval('#crumb button.part', x => x.length)) === 1 && /\d/.test(await page.textContent('#crumb .cnt')), 'Kopfzeile zeigt Hauptordner und Anzahl');
+check((await page.title()).includes('Picture Selector') && !(await page.title()).startsWith('Picture Selector'), 'Ordnername im Browser-Tab');
+await page.selectOption('#fFolder', '2025/Kroatien');
+check((await page.$$eval('#crumb button.part', x => x.map(b => b.textContent))).join('/').endsWith('2025/Kroatien'), 'Unterordner erscheint als Pfad');
+await page.screenshot({ path: 'tests/shot-crumb.png' });
+await page.click('#crumb button.part >> nth=1');
+check(await page.inputValue('#fFolder') === '2025', 'Klick auf Pfadteil springt zurück');
+await page.click('#crumb button.part >> nth=0');
+check(await page.inputValue('#fFolder') === '', 'Klick auf Hauptordner zeigt alle');
+
 console.log('12) Umbenennen nach Aufnahmezeit');
 await page.selectOption('#fFolder', '2025/Handy');
 await page.click('#grid .tile[title^="2025/Handy/serie_2.jpg"]');
