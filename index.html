@@ -262,7 +262,7 @@ const I18N = {
     person: 'Person', export: 'Exportieren', import: 'Importieren', settings: 'Einstellungen',
     folder: 'Ordner', allFolders: 'Alle Ordner', sort: 'Sortierung', sortAsc: 'Älteste zuerst', sortDesc: 'Neueste zuerst',
     starsAny: 'egal', starsNone: 'unbewertet', starsMin: '≥ {0} ★', starsEq: '= {0} ★', starsEq5: '= 5 ★',
-    statsFor: 'Übersicht {0}:', statsAll: 'Alle', statsNone: 'ohne ★', statsTip: 'Klicken, um nur diese Bilder zu zeigen (zählt im aktuellen Ordner/Tag-Filter)',
+    statsFor: 'Übersicht für', statsPersonTip: 'Wessen Sterne gezählt und gefiltert werden', statsAll: 'Alle', statsNone: 'ohne ★', statsTip: 'Klicken, um nur diese Bilder zu zeigen (zählt im aktuellen Ordner/Tag-Filter)',
     untagged: 'ohne Tag', count: '{0} von {1} Bildern',
     selected: '{0} ausgewählt', selectAll: 'Alle anzeigen auswählen', selectNone: 'Auswahl aufheben',
     tags: 'Tags …', tag: 'Tag', move: 'Verschieben …', toTrash: 'In Papierkorb', restore: 'Wiederherstellen',
@@ -323,7 +323,7 @@ const I18N = {
     person: 'Person', export: 'Export', import: 'Import', settings: 'Settings',
     folder: 'Folder', allFolders: 'All folders', sort: 'Sort', sortAsc: 'Oldest first', sortDesc: 'Newest first',
     starsAny: 'any', starsNone: 'unrated', starsMin: '≥ {0} ★', starsEq: '= {0} ★', starsEq5: '= 5 ★',
-    statsFor: 'Overview {0}:', statsAll: 'All', statsNone: 'no ★', statsTip: 'Click to show only these pictures (counted within the current folder/tag filter)',
+    statsFor: 'Overview for', statsPersonTip: 'Whose stars are counted and filtered', statsAll: 'All', statsNone: 'no ★', statsTip: 'Click to show only these pictures (counted within the current folder/tag filter)',
     untagged: 'untagged', count: '{0} of {1} pictures',
     selected: '{0} selected', selectAll: 'Select all shown', selectNone: 'Clear selection',
     tags: 'Tags …', tag: 'Tag', move: 'Move …', toTrash: 'Move to trash', restore: 'Restore',
@@ -768,15 +768,23 @@ function renderStats() {
   const box = $('#stats');
   if (!S.data || !S.person || S.mode === 'trash') { box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
-  const base = computeView(S.person);
+  // Übersicht für eine wählbare Person (Standard: ich selbst)
+  if (S.statsOwner !== S.person || !S.data.people.includes(S.statsPerson)) { S.statsPerson = S.person; S.statsOwner = S.person; }
+  const sp = S.statsPerson;
+  const base = computeView(sp);
   const cnt = [0, 0, 0, 0, 0, 0];
-  for (const f of base) cnt[starsOf(f)]++;
+  for (const f of base) cnt[starsOf(f, sp)]++;
   const total = base.length;
-  const cur = S.filter.stars[S.person] || 'any';
+  const cur = S.filter.stars[sp] || 'any';
   const items = [['any', `${esc(t('statsAll'))} <b>${total}</b>`, total, null],
     ['none', `${esc(t('statsNone'))} <b>${cnt[0]}</b>`, cnt[0], 0]];
   for (let i = 1; i <= 5; i++) items.push([i === 5 ? '5' : 'e' + i, `<span class="st">${'★'.repeat(i)}</span> <b>${cnt[i]}</b>`, cnt[i], i]);
-  box.innerHTML = `<span class="lbl">${esc(t('statsFor', S.person))}</span>`;
+  box.innerHTML = `<span class="lbl">${esc(t('statsFor'))}</span>`;
+  const sel = document.createElement('select'); sel.id = 'statsPerson'; sel.title = t('statsPersonTip');
+  S.data.people.forEach(p => sel.add(new Option(p, p)));
+  sel.value = sp;
+  sel.onchange = () => { S.statsPerson = sel.value; renderStats(); };
+  box.appendChild(sel);
   for (const [v, html, n, lvl] of items) {
     const c = document.createElement('span');
     c.className = 'chip' + (cur === v ? ' on' : '') + (n ? '' : ' zero');
@@ -784,7 +792,7 @@ function renderStats() {
     const pct = total ? Math.round(n / total * 100) : 0;
     c.innerHTML = html + (lvl != null ? ` <span class="bar"><i style="width:${pct}%"></i></span>` : '');
     c.onclick = () => {
-      S.filter.stars[S.person] = (cur === v && v !== 'any') ? 'any' : v;
+      S.filter.stars[sp] = (cur === v && v !== 'any') ? 'any' : v;
       renderFilters(); renderAll(); $('#main').scrollTop = 0;
     };
     box.appendChild(c);

@@ -243,6 +243,19 @@ check(names[0] === 'Auswahl/IMG_0001.jpg' && names[1] === '2025/Kroatien/IMG_000
 check((await page.textContent('#btnExport')) === 'Export', 'Oberfläche auf Englisch');
 await page.screenshot({ path: 'tests/shot-en.png' });
 
+console.log('10b) Übersicht für andere Person (Simone)');
+await page.selectOption('#statsPerson', 'Simone');
+const ss = { all: await stat('any'), none: await stat('none'), s1: await stat('e1'), s2: await stat('e2'), s3: await stat('e3'), s4: await stat('e4'), s5: await stat('5') };
+console.log('     ', JSON.stringify(ss));
+check(ss.all > 0 && ss.none + ss.s1 + ss.s2 + ss.s3 + ss.s4 + ss.s5 === ss.all && ss.none < ss.all, 'Übersicht zählt Simones Sterne');
+const lvl = ['e1', 'e2', 'e3', 'e4', '5'].find(v => ss[{ e1: 's1', e2: 's2', e3: 's3', e4: 's4', 5: 's5' }[v]] > 0);
+await page.click(`#stats .chip[data-v="${lvl}"]`);
+check(await page.$eval('#fStars label:has-text("Simone") select', s => s.value) === lvl && await page.$eval('#fStars label:has-text("Nico") select', s => s.value) === 'any', 'Klick filtert nach Simones Sternen, Nicos Filter bleibt');
+check(await page.inputValue('#statsPerson') === 'Simone', 'Auswahl Simone bleibt nach dem Filtern');
+await page.screenshot({ path: 'tests/shot-stats-simone.png' });
+await page.click(`#stats .chip[data-v="${lvl}"]`);
+await page.selectOption('#statsPerson', 'Nico');
+
 console.log('11b) Ordneranzeige in der Kopfzeile');
 check((await page.$$eval('#crumb button.part', x => x.length)) === 1 && /\d/.test(await page.textContent('#crumb .cnt')), 'Kopfzeile zeigt Hauptordner und Anzahl');
 check((await page.title()).includes('Picture Selector') && !(await page.title()).startsWith('Picture Selector'), 'Ordnername im Browser-Tab');
