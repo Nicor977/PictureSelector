@@ -103,6 +103,18 @@ header .title{font-weight:600;font-size:15px}
 #viewer .nav{position:absolute;top:0;bottom:0;width:12%;display:flex;align-items:center;justify-content:center;font-size:42px;opacity:0;cursor:pointer;user-select:none}
 #viewer .nav:hover{opacity:.7}
 #viewer .nav.prev{left:0} #viewer .nav.next{right:0}
+#viewer .body{flex:1;display:flex;min-height:0}
+#vStrip{width:138px;flex:none;overflow-y:auto;background:#0b0b0b;border-left:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}
+#viewer.nostrip #vStrip{display:none}
+#vStrip .it{position:relative;height:84px;flex:none;border:2px solid transparent;border-radius:4px;overflow:hidden;cursor:pointer;background:#1a1a1a;display:flex;align-items:center;justify-content:center;opacity:.7}
+#vStrip .it:hover{opacity:1}
+#vStrip .it.cur{border-color:var(--accent);opacity:1}
+#vStrip .it img{max-width:100%;max-height:100%;object-fit:contain}
+#vStrip .it .ph{font-size:10px;color:#888;padding:4px;word-break:break-all;text-align:center}
+#vStrip .it .sts{position:absolute;left:3px;bottom:2px;display:flex;flex-direction:column;gap:0;line-height:1.05}
+#vStrip .it .st{font-size:11px;color:var(--star);text-shadow:0 0 3px #000;letter-spacing:-1px;white-space:nowrap}
+#vStrip .it .st b{color:#fff;font-weight:600;letter-spacing:0;margin-right:2px}
+#vStrip .it .st.other{font-size:10px;opacity:.85}
 #viewer .bar{display:flex;gap:14px;align-items:center;padding:8px 14px;background:#111;flex-wrap:wrap;font-size:13px}
 #viewer .bar button{background:#222;border-color:#444;color:#fff}
 #vStars{font-size:24px;color:var(--star);cursor:pointer;user-select:none;letter-spacing:2px}
@@ -204,11 +216,14 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
 
 <!-- Einzelansicht -->
 <div id="viewer" class="hidden">
+  <div class="body">
   <div class="stage">
     <span id="vLoading" data-t="loading"></span>
     <img id="vImg" alt="">
     <div class="nav prev" id="vPrev">‹</div>
     <div class="nav next" id="vNext">›</div>
+  </div>
+  <div id="vStrip"></div>
   </div>
   <div class="bar">
     <span id="vStars"></span>
@@ -218,6 +233,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <span class="row xf"><button data-xf="left">⟲</button><button data-xf="right">⟳</button><button data-xf="h">⇋</button><button data-xf="v">⇵</button></span>
     <span class="spacer"></span>
     <span id="vMeta" class="vmeta"></span>
+    <button id="vStripBtn"></button>
     <button id="vTrash" class="danger"></button>
     <button id="vClose">✕ (Esc)</button>
   </div>
@@ -267,6 +283,7 @@ const I18N = {
     selected: '{0} ausgewählt', selectAll: 'Alle anzeigen auswählen', selectNone: 'Auswahl aufheben',
     tags: 'Tags …', tag: 'Tag', move: 'Verschieben …', toTrash: 'In Papierkorb', restore: 'Wiederherstellen',
     trashView: 'Papierkorb ({0})', backToPhotos: '← Zurück zu den Bildern',
+    strip: 'Leiste', stripTip: 'Leiste mit allen Bildern der Auswahl ein-/ausblenden',
     loading: 'Lädt …', empty: 'Keine Bilder für diese Auswahl.', emptyTrash: 'Der Papierkorb ist leer.',
     saved: 'Gespeichert', saving: 'Speichert …', unsaved: 'Nicht gespeichert', saveError: 'Fehler beim Speichern!',
     whoRates: 'Wer bewertet?', whoRatesText: 'Die Sterne werden pro Person gespeichert. Tags gelten für alle.',
@@ -308,7 +325,7 @@ const I18N = {
     help: 'Tastatur', helpText: [
       ['← → ↑ ↓', 'Bild wechseln'], ['1 – 5', 'Sterne vergeben'], ['0', 'Sterne entfernen'],
       ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['R', 'Nach Aufnahmezeit umbenennen'], ['Strg+← / Strg+→', 'Drehen'], ['H / V', 'Spiegeln'], ['Entf', 'In Papierkorb'],
-      ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['Esc', 'Schließen / Auswahl aufheben']],
+      ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['L', 'Einzelansicht: Leiste mit allen Bildern ein-/ausblenden'], ['Esc', 'Schließen / Auswahl aufheben']],
     heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
     noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
     newFileHint: 'Neuer Ordner: pictureselector.json wird bei der ersten Bewertung angelegt.',
@@ -328,6 +345,7 @@ const I18N = {
     selected: '{0} selected', selectAll: 'Select all shown', selectNone: 'Clear selection',
     tags: 'Tags …', tag: 'Tag', move: 'Move …', toTrash: 'Move to trash', restore: 'Restore',
     trashView: 'Trash ({0})', backToPhotos: '← Back to pictures',
+    strip: 'Strip', stripTip: 'Show/hide strip with all pictures of the selection',
     loading: 'Loading …', empty: 'No pictures match this filter.', emptyTrash: 'The trash is empty.',
     saved: 'Saved', saving: 'Saving …', unsaved: 'Not saved', saveError: 'Error while saving!',
     whoRates: 'Who is rating?', whoRatesText: 'Stars are stored per person. Tags are shared.',
@@ -369,7 +387,7 @@ const I18N = {
     help: 'Keyboard', helpText: [
       ['← → ↑ ↓', 'Change picture'], ['1 – 5', 'Set stars'], ['0', 'Remove stars'],
       ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['R', 'Rename by capture time'], ['Ctrl+← / Ctrl+→', 'Rotate'], ['H / V', 'Flip'], ['Del', 'Move to trash'],
-      ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['Esc', 'Close / clear selection']],
+      ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['L', 'Single view: show/hide strip with all pictures'], ['Esc', 'Close / clear selection']],
     heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
     noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
     newFileHint: 'New folder: pictureselector.json will be created with the first rating.',
@@ -870,7 +888,10 @@ function fitName(f) {
   if (f.dir && el.scrollWidth > el.clientWidth) el.textContent = '…\\' + f.name;
 }
 function refitVisible() { for (const f of S.view) if (f.vis) fitName(f); }
-function updateTile(f) { if (f.tile && f.tile.isConnected) fillTile(f); }
+function updateTile(f) {
+  if (f.tile && f.tile.isConnected) fillTile(f);
+  stripRefresh(f);
+}
 function onIntersect(entries) {
   for (const en of entries) {
     const f = S.view[+en.target.dataset.i]; if (!f) continue;
@@ -1000,6 +1021,7 @@ function openViewer(i) {
 }
 function closeViewer() {
   V.open = false; $('#viewer').classList.add('hidden');
+  V.stripView = null; if (stripObserver) stripObserver.disconnect(); $('#vStrip').innerHTML = '';
   for (const u of V.cache.values()) URL.revokeObjectURL(u); V.cache.clear();
   setFocus(V.idx, 'single');
   $('#main').focus();
@@ -1042,6 +1064,55 @@ function renderViewerBar() {
   const ds = d.toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'medium' });
   $('#vMeta').textContent = `${V.idx + 1}/${S.view.length} · ${f.path} · ${ds} · ${f.meta && f.meta.cam ? f.meta.cam : (f.meta && f.meta.time != null ? t('unknownCam') : t('noExif'))}`;
   $('#vTrash').textContent = S.mode === 'trash' ? t('restore') : '🗑 ' + t('toTrash') + ' (Entf)';
+  renderStrip();
+}
+/* Leiste rechts: alle Bilder der aktuellen Auswahl zum Durchscrollen.
+   Vorschaubilder werden erst geladen, wenn sie in der Leiste sichtbar werden. */
+function stripOn() { try { return localStorage.getItem('ps.strip') !== '0'; } catch { return true; } }
+function toggleStrip() {
+  const on = !stripOn(); try { localStorage.setItem('ps.strip', on ? '1' : '0'); } catch { }
+  V.stripView = null; renderStrip();
+}
+let stripObserver = null;
+function stripFill(d, f) {
+  const xs = xfCss(viewOrient(f));
+  // eigene Sterne zuerst, darunter die der anderen (Anfangsbuchstabe)
+  const rows = [S.person].concat(S.data.people.filter(p => p !== S.person)).map(p => [p, starsOf(f, p)]).filter(([, n]) => n)
+    .map(([p, n]) => `<span class="st${p === S.person ? '' : ' other'}" title="${esc(p)}: ${n} ★"><b>${esc(p[0])}:</b>${'★'.repeat(n)}</span>`).join('');
+  d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt=""${xs ? ` style="transform:${xs}"` : ''}>` : `<div class="ph">${esc(f.name)}</div>`) +
+    (rows ? `<span class="sts">${rows}</span>` : '');
+}
+function stripRefresh(f) {
+  if (V.open && f.stripEl && f.stripEl.isConnected) stripFill(f.stripEl, f);
+}
+function renderStrip() {
+  const on = stripOn();
+  $('#viewer').classList.toggle('nostrip', !on);
+  $('#vStripBtn').textContent = (on ? '▶ ' : '◀ ') + t('strip') + ' (L)';
+  $('#vStripBtn').title = t('stripTip');
+  const box = $('#vStrip');
+  if (!on) { box.innerHTML = ''; V.stripView = null; return; }
+  if (V.stripView !== S.view) { // neu aufbauen (Auswahl hat sich geändert)
+    box.innerHTML = ''; V.stripView = S.view; V.stripIdx = -1;
+    if (stripObserver) stripObserver.disconnect();
+    stripObserver = new IntersectionObserver(ents => {
+      for (const en of ents) { if (!en.isIntersecting) continue; const f = S.view[+en.target.dataset.i]; if (f && !f.thumbUrl && !f.thumbErr) Thumbs.want(f); }
+    }, { root: box, rootMargin: '400px' });
+    const frag = document.createDocumentFragment();
+    S.view.forEach((f, i) => {
+      const d = document.createElement('div'); d.className = 'it'; d.dataset.i = i; d.title = f.path;
+      f.stripEl = d; stripFill(d, f); d.onclick = () => { V.idx = i; showViewer(); };
+      frag.appendChild(d); stripObserver.observe(d);
+    });
+    box.appendChild(frag);
+  }
+  const old = box.querySelector('.it.cur'); if (old) old.classList.remove('cur');
+  const cur = box.children[V.idx]; if (!cur) return;
+  cur.classList.add('cur'); stripFill(cur, S.view[V.idx]);
+  if (V.stripIdx !== V.idx) { // beim Blättern: aktuelles Bild oben im ersten Viertel, damit die nächsten sichtbar sind
+    V.stripIdx = V.idx;
+    box.scrollTop = Math.max(0, cur.offsetTop - box.offsetTop - box.clientHeight * 0.2);
+  }
 }
 function viewerStep(d) { const i = V.idx + d; if (i >= 0 && i < S.view.length) { V.idx = i; showViewer(); } }
 
@@ -1669,6 +1740,7 @@ function bind() {
   grid.addEventListener('dblclick', e => { if (e.target.dataset.s) return; const tile = e.target.closest('.tile'); if (tile) openViewer(+tile.dataset.i); });
 
   $('#vPrev').onclick = () => viewerStep(-1);
+  $('#vStripBtn').onclick = toggleStrip;
   $('#vNext').onclick = () => viewerStep(1);
   $('#vClose').onclick = closeViewer;
   $('#vTagBtn').onclick = () => tagDialog([S.view[V.idx]]);
@@ -1696,6 +1768,7 @@ function onKey(e) {
     else if (k === 'Escape' || k === 'Enter') closeViewer();
     else if (/^[0-5]$/.test(k) && !e.ctrlKey) { setStars([f], +k); renderViewerBar(); }
     else if (k === 't' || k === 'T') { e.preventDefault(); tagDialog([f]); }
+    else if ((k === 'l' || k === 'L') && !e.ctrlKey && !e.metaKey) toggleStrip();
     else if (k === 'Delete') viewerTrash();
     else if (k === 'Home') { V.idx = 0; showViewer(); }
     else if (k === 'End') { V.idx = S.view.length - 1; showViewer(); }
