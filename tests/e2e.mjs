@@ -130,7 +130,7 @@ await page.keyboard.press('ArrowRight');
 await page.keyboard.press('2');
 await page.waitForTimeout(300);
 await page.screenshot({ path: 'tests/shot-viewer.png' });
-check(await page.$eval('#vStrip .it.cur .no', x => x.textContent) === '' && (await page.$$eval('#vStrip .it', x => x.length)) >= 2, 'Leiste rechts zeigt Nachbarbilder, aktuelles markiert');
+check((await page.$$eval('#vStrip .it', x => x.length)) === (await page.$$eval('#grid .tile', x => x.length)) && await page.$eval('#vStrip .it.cur', x => [...x.parentNode.children].indexOf(x)) === 2, 'Leiste rechts zeigt alle Bilder, aktuelles (3.) markiert');
 check((await page.textContent('#vStrip .it.cur .st')) === 'N:★★', 'Leiste zeigt Sterne des aktuellen Bildes');
 await page.waitForFunction(() => document.querySelectorAll('#vStrip .it img').length >= 2);
 check(true, 'Leiste lädt Vorschaubilder');
