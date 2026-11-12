@@ -131,7 +131,7 @@ await page.keyboard.press('2');
 await page.waitForTimeout(300);
 await page.screenshot({ path: 'tests/shot-viewer.png' });
 check(await page.$eval('#vStrip .it.cur .no', x => x.textContent) === '' && (await page.$$eval('#vStrip .it', x => x.length)) >= 2, 'Leiste rechts zeigt Nachbarbilder, aktuelles markiert');
-check((await page.textContent('#vStrip .it.cur .st')) === '★★', 'Leiste zeigt Sterne des aktuellen Bildes');
+check((await page.textContent('#vStrip .it.cur .st')) === 'N:★★', 'Leiste zeigt Sterne des aktuellen Bildes');
 await page.waitForFunction(() => document.querySelectorAll('#vStrip .it img').length >= 2);
 check(true, 'Leiste lädt Vorschaubilder');
 const meta0 = await page.textContent('#vMeta');
@@ -244,6 +244,12 @@ const orow = page.locator('#grid .tile[title^="2025/Kroatien/20250814_102231.hei
 check((await orow.count()) === 1 && (await orow.locator('.who').textContent()) === 'S:' && (await orow.locator('.ostars span.on').count()) === 3, 'Simones Sterne unter Nicos Zeile (S: ★★★)');
 await page.locator('#grid .tile[title^="2025/Kroatien/20250814_102231.heic"]').screenshot({ path: 'tests/shot-tile.png' });
 await page.screenshot({ path: 'tests/shot-grid2.png' });
+await page.dblclick('#grid .tile[title^="2025/Kroatien/20250814_102231.heic"]');
+await page.waitForSelector('#viewer:not(.hidden)');
+check((await page.$$eval('#vStrip .it.cur .st', x => x.map(y => y.textContent))).join(' ') === 'N:★★★★★ S:★★★', 'Leiste zeigt beide Bewertungen (N: ★★★★★, S: ★★★)');
+await page.waitForTimeout(400);
+await page.screenshot({ path: 'tests/shot-strip2.png' });
+await page.keyboard.press('Escape');
 
 console.log('11) Zeitkorrektur und Englisch');
 await page.click('#btnSettings');

@@ -111,7 +111,10 @@ header .title{font-weight:600;font-size:15px}
 #vStrip .it.cur{border-color:var(--accent);opacity:1}
 #vStrip .it img{max-width:100%;max-height:100%;object-fit:contain}
 #vStrip .it .ph{font-size:10px;color:#888;padding:4px;word-break:break-all;text-align:center}
-#vStrip .it .st{position:absolute;left:3px;bottom:2px;font-size:11px;color:var(--star);text-shadow:0 0 3px #000;letter-spacing:-1px}
+#vStrip .it .sts{position:absolute;left:3px;bottom:2px;display:flex;flex-direction:column;gap:0;line-height:1.05}
+#vStrip .it .st{font-size:11px;color:var(--star);text-shadow:0 0 3px #000;letter-spacing:-1px;white-space:nowrap}
+#vStrip .it .st b{color:#fff;font-weight:600;letter-spacing:0;margin-right:2px}
+#vStrip .it .st.other{font-size:10px;opacity:.85}
 #vStrip .it .no{position:absolute;right:3px;top:2px;font-size:10px;color:#ccc;text-shadow:0 0 3px #000}
 #viewer .bar{display:flex;gap:14px;align-items:center;padding:8px 14px;background:#111;flex-wrap:wrap;font-size:13px}
 #viewer .bar button{background:#222;border-color:#444;color:#fff}
@@ -1083,9 +1086,12 @@ function renderStrip() {
     const f = S.view[i];
     const d = document.createElement('div'); d.className = 'it' + (i === V.idx ? ' cur' : ''); d.title = f.path;
     if (!f.thumbUrl && !f.thumbErr) Thumbs.want(f);
-    const xs = xfCss(viewOrient(f)); const n = starsOf(f);
+    const xs = xfCss(viewOrient(f));
+    // eigene Sterne zuerst, darunter die der anderen (Anfangsbuchstabe)
+    const rows = [S.person].concat(S.data.people.filter(p => p !== S.person)).map(p => [p, starsOf(f, p)]).filter(([, n]) => n)
+      .map(([p, n]) => `<span class="st${p === S.person ? '' : ' other'}" title="${esc(p)}: ${n} ★"><b>${esc(p[0])}:</b>${'★'.repeat(n)}</span>`).join('');
     d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt=""${xs ? ` style="transform:${xs}"` : ''}>` : `<div class="ph">${esc(f.name)}</div>`) +
-      (n ? `<span class="st">${'★'.repeat(n)}</span>` : '') + `<span class="no">${i - V.idx > 0 ? '+' : ''}${i === V.idx ? '' : i - V.idx}</span>`;
+      (rows ? `<span class="sts">${rows}</span>` : '') + `<span class="no">${i - V.idx > 0 ? '+' : ''}${i === V.idx ? '' : i - V.idx}</span>`;
     d.onclick = () => { V.idx = i; showViewer(); };
     box.appendChild(d); if (i === V.idx) cur = d;
   }
