@@ -301,6 +301,9 @@ const EXIF_OPTS = { tiff: true, exif: true, gps: true, ifd1: false, interop: fal
 const LIBHEIF_LOCAL = 'lib/libheif-bundle.js';
 const LIBHEIF_CDN = 'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js';
 const LEAFLET_DIR = 'lib/leaflet/'; // Leaflet 1.9.4 + Leaflet.markercluster 1.5.3, erst beim Öffnen der Karte geladen
+const LEAFLET_CDN = { 'leaflet.css': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', 'leaflet.js': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+  'MarkerCluster.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css', 'MarkerCluster.Default.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
+  'leaflet.markercluster.js': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js' };
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
 const PLACE_GRID = 2; // Nachkommastellen beim Runden für den Ortsdienst (0,01° ≈ 1 km)
@@ -372,7 +375,7 @@ const I18N = {
     mapInfo: '{0} von {1} Bildern mit Ortsangabe', mapInfoNone: 'Keine Bilder mit Ortsangabe in dieser Auswahl.',
     mapKeep: 'Nur Ausschnitt zeigen', mapKeepTip: 'Karte schließen, Raster bleibt auf den Kartenausschnitt gefiltert', mapClose: 'Karte schließen (Filter aufheben)',
     mapNoGps: 'Keines dieser Bilder hat GPS-Daten (z.B. per WhatsApp verschickte Bilder haben keine).',
-    mapTilesFail: 'Kartenkacheln konnten nicht geladen werden. Ist der Computer online?', mapLibFail: 'Die Karte konnte nicht geladen werden.',
+    mapTilesFail: 'Kartenkacheln konnten nicht geladen werden. Ist der Computer online?', mapLibFail: 'Die Karte konnte nicht geladen werden: Der Ordner lib\\leaflet fehlt neben der HTML-Datei und das Internet ist nicht erreichbar.',
     geoChip: '📍 Kartenausschnitt: {0} Bilder', geoChipTip: 'Filter aufheben',
     openSingle: 'Einzelansicht', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 Auf Karte', geoOnMapTip: 'Im Picture Selector auf der Karte zeigen (K)',
     noGeo: 'ohne Ortsangabe',
@@ -450,7 +453,7 @@ const I18N = {
     mapInfo: '{0} of {1} pictures have a location', mapInfoNone: 'No pictures with a location in this selection.',
     mapKeep: 'Show only this area', mapKeepTip: 'Close the map, keep the grid filtered to the map area', mapClose: 'Close map (remove filter)',
     mapNoGps: 'None of these pictures has GPS data (e.g. pictures sent via WhatsApp have none).',
-    mapTilesFail: 'Map tiles could not be loaded. Is the computer online?', mapLibFail: 'The map could not be loaded.',
+    mapTilesFail: 'Map tiles could not be loaded. Is the computer online?', mapLibFail: 'The map could not be loaded: the folder lib\\leaflet is missing next to the HTML file and the internet is not reachable.',
     geoChip: '📍 Map area: {0} pictures', geoChipTip: 'Remove filter',
     openSingle: 'Single view', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 On map', geoOnMapTip: 'Show on the map in Picture Selector (K)',
     noGeo: 'no location',
@@ -1287,17 +1290,20 @@ function showOnMap(f) {
 const M = { open: false, map: null, cluster: null, markers: new Map(), base: null, libPromise: null, tileFailShown: false, applying: false };
 function loadLeaflet() {
   if (M.libPromise) return M.libPromise;
-  const css = href => new Promise(res => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.onload = l.onerror = res; document.head.appendChild(l); });
-  const js = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
-  M.libPromise = Promise.all([css(LEAFLET_DIR + 'leaflet.css'), css(LEAFLET_DIR + 'MarkerCluster.css'), css(LEAFLET_DIR + 'MarkerCluster.Default.css')])
-    .then(() => js(LEAFLET_DIR + 'leaflet.js')).then(() => js(LEAFLET_DIR + 'leaflet.markercluster.js'))
+  // erst lib/leaflet neben der HTML-Datei, sonst aus dem Internet (jsDelivr)
+  const css1 = href => new Promise((res, rej) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.onload = res; l.onerror = () => { l.remove(); rej(new Error(href)); }; document.head.appendChild(l); });
+  const js1 = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error(src)); }; document.head.appendChild(s); });
+  const css = n => css1(LEAFLET_DIR + n).catch(() => css1(LEAFLET_CDN[n])).catch(() => { });
+  const js = n => js1(LEAFLET_DIR + n).catch(() => js1(LEAFLET_CDN[n]));
+  M.libPromise = Promise.all([css('leaflet.css'), css('MarkerCluster.css'), css('MarkerCluster.Default.css')])
+    .then(() => js('leaflet.js')).then(() => js('leaflet.markercluster.js'))
     .catch(e => { M.libPromise = null; throw e; });
   return M.libPromise;
 }
 function mapNote(msg) { const n = $('#mapNote'); n.textContent = msg || ''; n.classList.toggle('hidden', !msg); }
 async function openMap(focusFile) {
   if (S.mode === 'trash') return;
-  try { await loadLeaflet(); } catch { toast(t('mapLibFail'), 6000); return; }
+  try { await loadLeaflet(); } catch (e) { console.warn('Karte', e); toast(t('mapLibFail'), 10000); return; }
   M.open = true;
   $('#mapPane').classList.remove('hidden');
   $('#btnMap').classList.add('primary');
