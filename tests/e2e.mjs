@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png' };
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -357,6 +357,93 @@ await page.click(tileSel(CA)); await page.click('#selbar .xf button[data-xf="rig
 data = await page.evaluate(() => __readJson('pictureselector.json'));
 check(data.images[CA]?.orient === 6 && await fileOri(CA) === null, 'JPG mit EXIF ohne Dreh-Feld: nur Anzeige (6)');
 await page.screenshot({ path: 'tests/shot-rotate.png' });
+
+console.log('14) Ort: GPS, Karte, Ortsnamen');
+// Kartenkacheln und Ortsdienst im Test nicht wirklich abfragen
+const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+let tileReq = 0; const nomReq = [];
+await page.route(/tile\.openstreetmap\.org|arcgisonline\.com/, r => { tileReq++; r.fulfill({ status: 200, contentType: 'image/png', body: PNG1 }); });
+await page.route('https://nominatim.openstreetmap.org/**', r => {
+  const u = new URL(r.request().url()); nomReq.push(u.searchParams.get('lat') + ',' + u.searchParams.get('lon'));
+  const lat = +u.searchParams.get('lat');
+  const a = lat > 43 ? { city: 'Split', state: 'Splitsko-dalmatinska', country: 'Kroatien', country_code: 'hr' }
+    : lat > 42 ? { town: 'Dubrovnik', country: 'Kroatien', country_code: 'hr' } : { city: 'Sydney', state: 'NSW', country: 'Australien', country_code: 'au' };
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ address: a, name: a.city || a.town }) });
+});
+const geoN = await page.evaluate(() => S.files.filter(hasGeo).map(f => f.path).sort());
+console.log('     ' + geoN.join(', '));
+check(geoN.length === 5, '5 Bilder mit GPS erkannt: ' + geoN.length);
+check(geoN.includes(HE), 'GPS auch aus HEIC gelesen');
+const sy = await page.evaluate(() => { const f = S.files.find(f => f.meta.lat < 0); return f && [f.meta.lat, f.meta.lon]; });
+check(sy && sy[0] === -33.8568 && sy[1] === 151.2153, 'Südhalbkugel richtig (S = minus): ' + sy);
+await page.click(tileSel(HE)); await page.keyboard.press('Enter'); await page.waitForSelector('#viewer:not(.hidden)');
+const vg = await page.textContent('#vGeo');
+check(/43\.50810° N, 16\.44020° E/.test(vg), 'Einzelansicht zeigt Koordinaten: ' + vg);
+check(/mlat=43\.5081&mlon=16\.4402/.test(await page.$eval('#vGeo a', a => a.href)), 'Link zu OpenStreetMap');
+await page.keyboard.press('k');
+await page.waitForSelector('#mapPane:not(.hidden) .psPin, #mapPane:not(.hidden) .marker-cluster', { timeout: 10000 });
+await page.waitForTimeout(600);
+check(await page.isHidden('#viewer'), 'K in der Einzelansicht: Karte geöffnet');
+let gn = await tileNames();
+check(gn.length >= 1 && gn.length <= 3 && gn.includes(HE) && !gn.includes('2025/Handy/20250816_120000.jpg') && !gn.includes('Auswahl/20250814_103000.jpg'), 'Raster zeigt nur Bilder im Kartenausschnitt (Split): ' + gn.length);
+check(tileReq > 0, 'Kartenkacheln angefragt: ' + tileReq);
+await page.click('#mapClose'); await page.waitForTimeout(300);
+check((await tileNames()).length === 9 && await page.isHidden('#mapPane'), 'Karte schließen hebt den Filter auf');
+await page.click('#main'); await page.keyboard.press('k');
+await page.waitForSelector('#mapPane:not(.hidden)'); await page.waitForTimeout(800);
+gn = await tileNames();
+check(gn.length === 5, 'Ganze Karte: Raster zeigt die 5 Bilder mit Ort: ' + gn.length);
+check(/5 of 9/.test(await page.textContent('#mapInfo')), 'Hinweis: ' + await page.textContent('#mapInfo'));
+await page.screenshot({ path: 'tests/shot-map.png' });
+const clusters = await page.$$('.marker-cluster');
+check(clusters.length >= 1, 'Bilder werden zu Haufen zusammengefasst: ' + clusters.length);
+await page.evaluate(() => M.map.setView([43.5083, 16.4406], 12, { animate: false })); await page.waitForTimeout(500);
+gn = await tileNames();
+check(gn.length === 3, 'Ausschnitt Split: 3 Bilder: ' + gn.length);
+await page.click('#mapKeep'); await page.waitForTimeout(300);
+check(await page.isHidden('#mapPane') && (await tileNames()).length === 3 && await page.isVisible('#geoChip'), 'Nur Ausschnitt zeigen: Karte zu, Filter bleibt als Chip');
+await page.click('#geoChip b'); await page.waitForTimeout(200);
+check((await tileNames()).length === 9, 'Chip ✕ hebt Filter auf');
+
+// Ortsnamen nur auf Knopfdruck
+check(nomReq.length === 0, 'ohne Knopfdruck keine Anfrage an den Ortsdienst');
+await page.click('#main'); await page.keyboard.press('k'); await page.waitForSelector('#mapPane:not(.hidden)');
+await page.click('#mapPlaces'); await page.waitForSelector('#dlg[open]');
+const pt = await page.textContent('#dlgBody');
+check(/For 5 pictures, 3 places/.test(pt), 'Dialog nennt Anzahl und Datenschutz: ' + pt.slice(0, 60));
+const t0 = Date.now();
+await page.click('#dlgFoot button.primary');
+await page.waitForFunction(() => document.querySelector('#progress').classList.contains('hidden') && S.data.places && Object.keys(S.data.places).length === 3, null, { timeout: 15000 });
+const dt = Date.now() - t0;
+check(nomReq.length === 3 && dt >= 2000, `3 Anfragen, höchstens 1 pro Sekunde (${dt} ms): ${nomReq.join(' ')}`);
+check(nomReq.every(x => /^-?\d+\.\d{2},-?\d+\.\d{2}$/.test(x)), 'nur gerundete Koordinaten gesendet');
+await page.waitForTimeout(1200);
+data = await page.evaluate(() => __readJson('pictureselector.json'));
+check(data.places && data.places['43.51,16.44']?.city === 'Split' && data.places['42.65,18.09']?.city === 'Dubrovnik', 'Ortsnamen in pictureselector.json gespeichert');
+await page.click('#mapClose');
+const opts = await page.$$eval('#fPlace option', o => o.map(x => x.textContent.trim()));
+check(opts.includes('Kroatien (4)') && opts.includes('Split (3)') && opts.includes('Sydney (1)'), 'Filter „Ort“: ' + opts.join(' | '));
+await page.selectOption('#fPlace', 'p:Kroatien|Split'); await page.waitForTimeout(200);
+check((await tileNames()).length === 3, 'Filter Split: 3 Bilder');
+await page.selectOption('#fPlace', 'none'); await page.waitForTimeout(200);
+check((await tileNames()).length === 4, 'Filter ohne Ortsname: 4 Bilder');
+await page.selectOption('#fPlace', 'p:Kroatien|Split'); await page.waitForTimeout(200);
+await page.click('#main'); await page.keyboard.press('Control+a'); await page.keyboard.press('t'); await page.waitForSelector('#dlg[open] #tagSugg');
+const sg = await page.$$eval('#tagSugg .chip', x => x.map(c => c.textContent));
+check(sg.join() === '+ Split,+ Kroatien', 'Tag-Vorschläge aus dem Ort: ' + sg.join());
+await page.click('#tagSugg .chip:has-text("Split")'); await page.waitForTimeout(1200);
+data = await page.evaluate(() => __readJson('pictureselector.json'));
+check(Object.values(data.images).filter(e => e.tags.includes('Split')).length === 3, 'Tag „Split“ für 3 Bilder gesetzt');
+await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+await page.selectOption('#fPlace', '');
+await page.click(tileSel(HE)); await page.keyboard.press('Enter'); await page.waitForSelector('#viewer:not(.hidden)');
+check(/Split, Kroatien/.test(await page.textContent('#vGeo')), 'Einzelansicht zeigt Ortsnamen');
+await page.screenshot({ path: 'tests/shot-geo-viewer.png' });
+await page.keyboard.press('Escape');
+await page.click('#main'); await page.keyboard.press('k'); await page.waitForSelector('#mapPane:not(.hidden)');
+await page.click('#mapPlaces'); await page.waitForSelector('#dlg[open]');
+check(/already have a place name/.test(await page.textContent('#dlgBody')) && nomReq.length === 3, 'zweites Mal: alles schon bekannt, keine neue Anfrage');
+await page.keyboard.press('Escape'); await page.click('#mapClose');
 
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} FEHLER` : '\nAlle Tests bestanden');
