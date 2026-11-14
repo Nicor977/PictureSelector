@@ -304,7 +304,10 @@ const LEAFLET_DIR = 'lib/leaflet/'; // Leaflet 1.9.4 + Leaflet.markercluster 1.5
 const LEAFLET_CDN = { 'leaflet.css': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', 'leaflet.js': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
   'MarkerCluster.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css', 'MarkerCluster.Default.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
   'leaflet.markercluster.js': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js' };
-const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// OpenStreetMap sperrt Kacheln für Seiten ohne Adresse (Datei per Doppelklick, file://) -> dann CARTO (Daten ebenfalls OSM)
+const TILES = location.protocol === 'file:'
+  ? { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', opt: { subdomains: 'abcd', maxZoom: 20, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' } }
+  : { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opt: { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' } };
 const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
 const PLACE_GRID = 2; // Nachkommastellen beim Runden für den Ortsdienst (0,01° ≈ 1 km)
 
@@ -1309,7 +1312,7 @@ async function openMap(focusFile) {
   $('#btnMap').classList.add('primary');
   if (!M.map) {
     M.map = L.map('map', { worldCopyJump: true, zoomControl: true, keyboard: true });
-    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' })
+    L.tileLayer(TILES.url, TILES.opt)
       .on('tileerror', () => { if (!M.tileFailShown) { M.tileFailShown = true; toast(t('mapTilesFail'), 6000); } })
       .addTo(M.map);
     M.cluster = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
