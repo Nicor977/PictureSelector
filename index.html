@@ -38,6 +38,13 @@ select,input[type=text],input[type=number]{background:var(--panel);border:1px so
 #start p{margin:6px 0 16px}
 #start .actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 #start .actions button{padding:10px 14px;text-align:left}
+#recentList{display:flex;flex-direction:column;gap:6px}
+#recentList .rec{display:flex;gap:4px;align-items:center}
+#recentList .rec button:first-child{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+#recentList .rec button.link{padding:6px;color:var(--muted)}
+#recentList .sub{font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#recentList .warn{color:var(--danger);font-weight:700}
+#start .card{max-width:600px}
 #browserWarn{background:#fff3cd;color:#664d03;border-radius:6px;padding:10px;margin-top:12px}
 
 /* App layout */
@@ -180,6 +187,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <p class="muted" data-t="tagline"></p>
     <div class="actions">
       <button id="btnRecent" class="primary hidden"></button>
+      <div id="recentList"></div>
       <button id="btnOpen" data-t="openFolder"></button>
     </div>
     <div id="browserWarn" class="hidden" data-t="browserWarn"></div>
@@ -396,6 +404,9 @@ const I18N = {
     placesDo: 'Nachschlagen', placesRunning: 'Ortsnamen werden ermittelt …', placesResult: '{0} Orte ermittelt.', placesStopped: 'Abgebrochen – {0} Orte ermittelt, der Rest kann später nachgeholt werden.',
     placesFail: 'Der Ortsdienst antwortet nicht ({0}). {1} Orte ermittelt, später erneut versuchen.', stop: 'Abbrechen',
     tagSugg: 'Vorschläge aus dem Ort:',
+    recentTitle: 'Zuletzt geöffnet:', recentLabel: 'Bezeichnung ändern (z.B. Laufwerk)', recentRemove: 'Aus der Liste entfernen',
+    recentLabelPrompt: 'Bezeichnung für „{0}“, z.B. das Laufwerk (D:) oder „Externe Platte“. Der Browser verrät den Speicherort nicht, deshalb hier selbst eintragen:',
+    recentSameName: 'Es gibt schon einen Ordner „{0}“ in der Liste. Unter welcher Bezeichnung soll dieser erscheinen? (z.B. das Laufwerk, D:)',
   },
   en: {
     tagline: 'Review, rate, tag and sort your photos – directly on your hard drive.',
@@ -474,6 +485,9 @@ const I18N = {
     placesDo: 'Look up', placesRunning: 'Looking up place names …', placesResult: '{0} places found.', placesStopped: 'Cancelled – {0} places found, the rest can be done later.',
     placesFail: 'The place service does not respond ({0}). {1} places found, try again later.', stop: 'Cancel',
     tagSugg: 'Suggestions from the place:',
+    recentTitle: 'Recently opened:', recentLabel: 'Change label (e.g. drive)', recentRemove: 'Remove from list',
+    recentLabelPrompt: 'Label for "{0}", e.g. the drive (D:) or "External disk". The browser does not reveal the location, so enter it here:',
+    recentSameName: 'There is already a folder "{0}" in the list. Which label should this one get? (e.g. the drive, D:)',
   }
 };
 let LANG = (() => { try { return localStorage.getItem('ps.lang') || (navigator.language.startsWith('de') ? 'de' : 'en'); } catch { return 'de'; } })();
@@ -569,10 +583,50 @@ const S = {
 function emptyData() { return { version: 1, app: 'Picture Selector', people: ['Nico', 'Simone'], tags: [], cameraOffsets: {}, images: {} }; }
 
 /* ---------------------------- Start ---------------------------- */
+/* Zuletzt geöffnete Ordner. Der Browser verrät Laufwerk und vollen Pfad nicht (Datenschutz),
+   daher: Anzahl Bilder, Unterordner, Datum und eine selbst vergebene Bezeichnung (z.B. „D:“). */
+async function getRecents() {
+  let r = await DB.get('kv', 'recents');
+  if (!Array.isArray(r)) { const h = await DB.get('kv', 'lastRoot'); r = h ? [{ handle: h, name: h.name }] : []; }
+  return r.filter(x => x && x.handle);
+}
+async function rememberRecent(handle) {
+  if (window.__PS_TEST__) return;
+  const r = await getRecents();
+  let e = null;
+  for (const x of r) { try { if (await x.handle.isSameEntry(handle)) { e = x; break; } } catch { } }
+  const isNew = !e;
+  if (!e) e = { handle, name: handle.name };
+  e.handle = handle; e.name = handle.name; e.opened = Date.now();
+  e.count = S.files.filter(f => !isTrash(f)).length;
+  e.subdirs = [...S.dirs.keys()].filter(d => d && !d.includes('/') && d !== TRASH).sort((a, b) => a.localeCompare(b)).slice(0, 4);
+  if (isNew && !e.label && r.some(x => x.name === handle.name)) {
+    const l = (prompt(t('recentSameName', handle.name), '') || '').trim(); if (l) e.label = l;
+  }
+  const out = [e].concat(r.filter(x => x !== e)).slice(0, 8);
+  await DB.put('kv', 'recents', out);
+  await DB.put('kv', 'lastRoot', handle);
+}
 async function updateRecentButton() {
-  const b = $('#btnRecent'); const h = await DB.get('kv', 'lastRoot');
-  if (h) { b.textContent = t('openRecent', h.name); b.classList.remove('hidden'); b.onclick = () => openRoot(h); }
-  else b.classList.add('hidden');
+  const box = $('#recentList'); box.innerHTML = '';
+  const r = await getRecents();
+  $('#btnRecent').classList.add('hidden');
+  if (!r.length) return;
+  const loc = LANG === 'de' ? 'de-DE' : 'en-GB';
+  const dup = n => r.filter(x => x.name === n).length > 1;
+  const h = document.createElement('div'); h.className = 'muted'; h.textContent = t('recentTitle'); box.appendChild(h);
+  r.forEach((x, i) => {
+    const it = document.createElement('div'); it.className = 'rec';
+    const b = document.createElement('button'); if (i === 0) b.className = 'primary';
+    const info = [x.count != null ? t('crumbCount', x.count.toLocaleString(loc)) : '', x.subdirs && x.subdirs.length ? '📂 ' + x.subdirs.join(', ') : '', x.opened ? new Date(x.opened).toLocaleDateString(loc) : ''].filter(Boolean).join(' · ');
+    b.innerHTML = `<span class="nm">📁 ${x.label ? `<b>${esc(x.label)}</b> · ` : ''}${esc(x.name)}${!x.label && dup(x.name) ? ' <span class="warn">?</span>' : ''}</span>${info ? `<span class="sub">${esc(info)}</span>` : ''}`;
+    b.onclick = () => openRoot(x.handle);
+    const ed = document.createElement('button'); ed.className = 'link'; ed.textContent = '✎'; ed.title = t('recentLabel');
+    ed.onclick = async () => { const l = prompt(t('recentLabelPrompt', x.name), x.label || ''); if (l === null) return; x.label = l.trim(); await DB.put('kv', 'recents', r); updateRecentButton(); };
+    const rm = document.createElement('button'); rm.className = 'link'; rm.textContent = '✕'; rm.title = t('recentRemove');
+    rm.onclick = async () => { const rest = r.filter(y => y !== x); await DB.put('kv', 'recents', rest); if (!rest.length || i === 0) await DB.put('kv', 'lastRoot', rest[0] ? rest[0].handle : null); updateRecentButton(); };
+    it.append(b, ed, rm); box.appendChild(it);
+  });
 }
 async function pickFolder() {
   try { const h = await window.showDirectoryPicker({ id: 'pictureselector', mode: 'readwrite' }); await openRoot(h); }
@@ -582,7 +636,6 @@ async function openRoot(handle) {
   let perm = await handle.queryPermission({ mode: 'readwrite' });
   if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
   if (perm !== 'granted') { toast(t('permDenied')); return; }
-  if (!window.__PS_TEST__) await DB.put('kv', 'lastRoot', handle);
   if (S.root) await saveNow();
   S.root = handle;
   S.filter.folder = ''; S.mode = 'main'; S.selected.clear(); S.focus = -1;
@@ -598,6 +651,7 @@ async function openRoot(handle) {
   }
   $('#start').classList.add('hidden'); $('#app').classList.remove('hidden');
   await scanAll();
+  try { await rememberRecent(handle); } catch (e) { console.warn('recents', e); }
   await choosePerson();
   if (!S.dataExisted) toast(t('newFileHint'), 5000);
   await reidentify();
