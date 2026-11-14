@@ -362,7 +362,7 @@ console.log('14) Ort: GPS, Karte, Ortsnamen');
 // Kartenkacheln und Ortsdienst im Test nicht wirklich abfragen
 const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 let tileReq = 0; const nomReq = [];
-await page.route('https://tile.openstreetmap.org/**', r => { tileReq++; r.fulfill({ status: 200, contentType: 'image/png', body: PNG1 }); });
+await page.route(/tile\.openstreetmap\.org|arcgisonline\.com/, r => { tileReq++; r.fulfill({ status: 200, contentType: 'image/png', body: PNG1 }); });
 await page.route('https://nominatim.openstreetmap.org/**', r => {
   const u = new URL(r.request().url()); nomReq.push(u.searchParams.get('lat') + ',' + u.searchParams.get('lon'));
   const lat = +u.searchParams.get('lat');

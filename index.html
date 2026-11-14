@@ -304,10 +304,16 @@ const LEAFLET_DIR = 'lib/leaflet/'; // Leaflet 1.9.4 + Leaflet.markercluster 1.5
 const LEAFLET_CDN = { 'leaflet.css': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', 'leaflet.js': 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
   'MarkerCluster.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css', 'MarkerCluster.Default.css': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
   'leaflet.markercluster.js': 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js' };
-// OpenStreetMap sperrt Kacheln für Seiten ohne Adresse (Datei per Doppelklick, file://) -> dann CARTO (Daten ebenfalls OSM)
-const TILES = location.protocol === 'file:'
-  ? { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', opt: { subdomains: 'abcd', maxZoom: 20, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' } }
-  : { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opt: { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' } };
+// Kartendienste. OpenStreetMap (und CARTO) sperren Seiten ohne Adresse (Datei per Doppelklick, file://),
+// dort ist Esri voreingestellt. Umschalten oben rechts in der Karte, die Wahl wird gemerkt.
+const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+const ESRI_ATTR = 'Tiles © <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>';
+const TILE_LAYERS = {
+  osm: { name: 'OpenStreetMap', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opt: { maxZoom: 19, attribution: OSM_ATTR } },
+  esri: { name: 'Esri Straßen / Streets', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', opt: { maxZoom: 19, attribution: ESRI_ATTR + ', HERE, Garmin, © OpenStreetMap' } },
+  sat: { name: 'Esri Satellit / Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', opt: { maxZoom: 19, attribution: ESRI_ATTR + ', Maxar, Earthstar Geographics' } },
+};
+const TILE_DEFAULT = location.protocol === 'file:' ? 'esri' : 'osm';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
 const PLACE_GRID = 2; // Nachkommastellen beim Runden für den Ortsdienst (0,01° ≈ 1 km)
 
@@ -378,7 +384,7 @@ const I18N = {
     mapInfo: '{0} von {1} Bildern mit Ortsangabe', mapInfoNone: 'Keine Bilder mit Ortsangabe in dieser Auswahl.',
     mapKeep: 'Nur Ausschnitt zeigen', mapKeepTip: 'Karte schließen, Raster bleibt auf den Kartenausschnitt gefiltert', mapClose: 'Karte schließen (Filter aufheben)',
     mapNoGps: 'Keines dieser Bilder hat GPS-Daten (z.B. per WhatsApp verschickte Bilder haben keine).',
-    mapTilesFail: 'Kartenkacheln konnten nicht geladen werden. Ist der Computer online?', mapLibFail: 'Die Karte konnte nicht geladen werden: Der Ordner lib\\leaflet fehlt neben der HTML-Datei und das Internet ist nicht erreichbar.',
+    mapTilesFail: 'Kartenkacheln konnten nicht geladen werden. Ist der Computer online? Oben rechts in der Karte lässt sich ein anderer Kartendienst wählen.', mapLibFail: 'Die Karte konnte nicht geladen werden: Der Ordner lib\\leaflet fehlt neben der HTML-Datei und das Internet ist nicht erreichbar.',
     geoChip: '📍 Kartenausschnitt: {0} Bilder', geoChipTip: 'Filter aufheben',
     openSingle: 'Einzelansicht', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 Auf Karte', geoOnMapTip: 'Im Picture Selector auf der Karte zeigen (K)',
     noGeo: 'ohne Ortsangabe',
@@ -456,7 +462,7 @@ const I18N = {
     mapInfo: '{0} of {1} pictures have a location', mapInfoNone: 'No pictures with a location in this selection.',
     mapKeep: 'Show only this area', mapKeepTip: 'Close the map, keep the grid filtered to the map area', mapClose: 'Close map (remove filter)',
     mapNoGps: 'None of these pictures has GPS data (e.g. pictures sent via WhatsApp have none).',
-    mapTilesFail: 'Map tiles could not be loaded. Is the computer online?', mapLibFail: 'The map could not be loaded: the folder lib\\leaflet is missing next to the HTML file and the internet is not reachable.',
+    mapTilesFail: 'Map tiles could not be loaded. Is the computer online? Another map service can be chosen at the top right of the map.', mapLibFail: 'The map could not be loaded: the folder lib\\leaflet is missing next to the HTML file and the internet is not reachable.',
     geoChip: '📍 Map area: {0} pictures', geoChipTip: 'Remove filter',
     openSingle: 'Single view', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 On map', geoOnMapTip: 'Show on the map in Picture Selector (K)',
     noGeo: 'no location',
@@ -1312,9 +1318,15 @@ async function openMap(focusFile) {
   $('#btnMap').classList.add('primary');
   if (!M.map) {
     M.map = L.map('map', { worldCopyJump: true, zoomControl: true, keyboard: true });
-    L.tileLayer(TILES.url, TILES.opt)
-      .on('tileerror', () => { if (!M.tileFailShown) { M.tileFailShown = true; toast(t('mapTilesFail'), 6000); } })
-      .addTo(M.map);
+    const layers = {}; let pick = TILE_DEFAULT;
+    try { const v = localStorage.getItem('ps.tiles'); if (TILE_LAYERS[v]) pick = v; } catch { }
+    for (const [k, d] of Object.entries(TILE_LAYERS)) {
+      layers[d.name] = L.tileLayer(d.url, d.opt).on('tileerror', () => { if (!M.tileFailShown) { M.tileFailShown = true; toast(t('mapTilesFail'), 6000); } });
+      layers[d.name]._psKey = k;
+    }
+    layers[TILE_LAYERS[pick].name].addTo(M.map);
+    L.control.layers(layers, null, { position: 'topright' }).addTo(M.map);
+    M.map.on('baselayerchange', e => { M.tileFailShown = false; try { localStorage.setItem('ps.tiles', e.layer._psKey); } catch { } });
     M.cluster = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
     M.map.addLayer(M.cluster);
     M.map.on('moveend', onMapMove);
