@@ -8,7 +8,7 @@ Fotos sichten, bewerten, taggen und sortieren – direkt auf der eigenen Festpla
 2. **Bilderordner öffnen** und den Zugriff erlauben (Lesen und Schreiben).
 3. Person wählen, die bewertet (z.B. Nico oder Simone).
 
-Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
+Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser, HEIC-Decoder und Karte).
 
 ## Was Version 1 kann
 
@@ -26,6 +26,10 @@ Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
 
 - **Umbenennen nach Aufnahmezeit**: Bilder auswählen, „Umbenennen …“ (oder Taste R). Neuer Name `YYYYMMDD_HHmmss` aus der EXIF-Aufnahmezeit inkl. Zeitkorrektur der Kamera, Bilder aus derselben Sekunde bekommen `_1`, `_2` …, vorhandene Dateien werden nie überschrieben. Vorher zeigt eine Vorschau alle neuen Namen. Bilder ohne EXIF-Zeit (z.B. WhatsApp, Screenshots) bleiben unverändert, Bilder mit passendem Namen werden übersprungen. Sterne und Tags wandern mit.
 
+- **Ort (GPS)**: Die Koordinaten aus den EXIF-Daten (JPG und HEIC) stehen in der Einzelansicht, mit Links zu OpenStreetMap und Google Maps. Bilder ohne GPS (z.B. per WhatsApp verschickt) haben einfach keinen Ort.
+- **Karte** (Knopf „🗺 Karte“ oder Taste K): links eine Karte mit allen Bildern der aktuellen Auswahl, nahe beieinander liegende werden zu einem Kreis mit Zahl zusammengefasst. Das Raster rechts zeigt nur die Bilder im sichtbaren Kartenausschnitt; ein Klick auf einen Kreis zoomt hinein und filtert damit weiter. Klick auf einen Punkt zeigt Vorschau und markiert das Bild im Raster. „Nur Ausschnitt zeigen“ schließt die Karte und lässt den Filter stehen (Chip „📍 Kartenausschnitt“ mit ✕), „✕“ schließt die Karte ohne Filter. In der Einzelansicht zeigt „🗺 Auf Karte“ (oder K) das Bild auf der Karte. Die Kartenkacheln kommen von OpenStreetMap, dafür braucht es Internet.
+- **Ortsnamen** („📍 Ortsnamen ermitteln …“ in der Karte): erst nach Knopfdruck und Bestätigung werden auf ca. 1 km gerundete Koordinaten an OpenStreetMap Nominatim geschickt (höchstens eine Anfrage pro Sekunde, keine Bilder, keine Dateinamen). Das Ergebnis (z.B. „Split, Kroatien“) wird in `pictureselector.json` gespeichert und danach ohne Internet genutzt: Filter „Ort“ (Land oder Stadt), Anzeige in der Einzelansicht und als Tag-Vorschlag im Tag-Dialog. Beim Export werden die Ortsnamen mitgegeben, damit der andere Computer nicht erneut nachschlagen muss.
+
 ## Tastatur
 
 | Taste | Wirkung |
@@ -40,6 +44,8 @@ Der Ordner `lib/` muss neben `index.html` liegen (EXIF-Leser und HEIC-Decoder).
 | H / V | Horizontal / vertikal spiegeln |
 | Entf | In den Papierkorb |
 | Strg+A | Alle angezeigten auswählen |
+| K | Karte ein-/ausblenden (Einzelansicht: Bild auf der Karte zeigen) |
+| L | Einzelansicht: Leiste mit allen Bildern ein-/ausblenden |
 | Esc | Schließen / Auswahl aufheben |
 
 ## Datenablage
@@ -52,6 +58,7 @@ Alles steht in `pictureselector.json` im gewählten Hauptordner. Die Bilder selb
   "people": ["Nico", "Simone"],
   "tags": ["Urlaub Kroatien 2025"],
   "cameraOffsets": { "Canon EOS 250D": 3600 },
+  "places": { "43.51,16.44": { "city": "Split", "region": "Splitsko-dalmatinska", "country": "Kroatien", "cc": "HR" } },
   "images": {
     "2025/Kroatien/IMG_0042.heic": {
       "stars": { "Nico": 4, "Simone": 5 },
@@ -67,6 +74,7 @@ Alles steht in `pictureselector.json` im gewählten Hauptordner. Die Bilder selb
 - Eine HTML-Datei mit reinem JavaScript, kein Build-Schritt.
 - File System Access API (nur Edge/Chrome).
 - `lib/exifr.umd.js` – [exifr](https://github.com/MikeKovarik/exifr) 7.1.3 (MIT) zum Lesen der EXIF-Daten.
+- `lib/leaflet/` – [Leaflet](https://leafletjs.com) 1.9.4 (BSD-2-Clause) und [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster) 1.5.3 (MIT) für die Karte. Werden erst beim Öffnen der Karte geladen. Kartenkacheln: © OpenStreetMap-Mitwirkende.
 - `lib/libheif-bundle.js` – [libheif-js](https://github.com/catdad-experiments/libheif-js) 1.19.8 (LGPL-3.0) zum Anzeigen von HEIC. Wird nur geladen, wenn HEIC-Dateien vorkommen; falls die Datei fehlt, wird sie von jsDelivr geladen.
 
 ## Veröffentlichen

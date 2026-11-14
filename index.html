@@ -70,7 +70,24 @@ header .title{font-weight:600;font-size:15px}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .chip.some{background:var(--accent-soft);border-color:var(--accent)}
 #selbar{display:flex;gap:8px;align-items:center;padding:6px 12px;background:var(--accent-soft);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#workarea{flex:1;display:flex;min-height:0}
 #main{flex:1;overflow:auto;padding:12px;outline:none}
+/* Karte */
+#mapPane{isolation:isolate;width:56%;min-width:320px;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);position:relative}
+#mapPane .mapbar{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#map{flex:1;min-height:200px;background:#dde3e8}
+#mapNote{position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:1000;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;box-shadow:0 2px 10px #0003;max-width:90%;text-align:center}
+.psPin{width:14px!important;height:14px!important;margin:-7px 0 0 -7px!important;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 3px #0008}
+.psPop{width:200px;color:#1c2430}
+.psPop img{width:200px;height:150px;object-fit:contain;background:#0001;display:block;margin-bottom:4px;cursor:pointer}
+.psPop .nm{font-weight:600;word-break:break-all}
+.psPop .st{color:#e6a700}
+.psPop button{margin-top:6px}
+#geoChip{cursor:default}
+#geoChip b{cursor:pointer;margin-left:4px}
+#vGeo a{color:#9cc6f5;margin-left:6px}
+#vGeo button{margin-left:6px;padding:1px 7px}
+.chip.sugg{border-style:dashed}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tile),1fr));gap:8px}
 .tile{position:relative;aspect-ratio:1;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;content-visibility:auto;contain-intrinsic-size:var(--tile) var(--tile)}
 .tile img{width:100%;height:100%;object-fit:contain;display:block;background:#0001}
@@ -149,7 +166,7 @@ dialog h3:first-child{margin-top:0}
 #progress .box{background:var(--panel);border-radius:10px;padding:22px 26px;min-width:320px;max-width:90vw}
 #progress .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:10px}
 #progress .bar div{height:100%;background:var(--accent);width:0}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;z-index:60;max-width:90vw;box-shadow:0 4px 16px #0005}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:8px;z-index:2000;max-width:90vw;box-shadow:0 4px 16px #0005}
 kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px;background:var(--bg)}
 </style>
 </head>
@@ -188,7 +205,10 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <label><span data-t="folder"></span> <select id="fFolder"></select></label>
     <span id="fStars" class="row"></span>
     <span id="tagFilter"></span>
+    <label id="fPlaceWrap" class="hidden"><span data-t="place"></span> <select id="fPlace"></select></label>
+    <span id="geoChip" class="chip on hidden"></span>
     <span class="spacer"></span>
+    <button id="btnMap" class="normalOnly"></button>
     <label><span data-t="sort"></span> <select id="fSort"><option value="asc"></option><option value="desc"></option></select></label>
     <label title="Größe"><input type="range" id="fSize" min="110" max="420" value="180"></label>
     <span id="count" class="muted"></span>
@@ -208,9 +228,22 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     </span>
     <span class="trashOnly row"><button id="sRestore" class="primary" data-t="restore"></button></span>
   </div>
+  <div id="workarea">
+  <div id="mapPane" class="hidden">
+    <div class="mapbar">
+      <span id="mapInfo" class="muted"></span>
+      <span class="spacer"></span>
+      <button id="mapPlaces"></button>
+      <button id="mapKeep" class="primary"></button>
+      <button id="mapClose">✕</button>
+    </div>
+    <div id="map"></div>
+    <div id="mapNote" class="hidden"></div>
+  </div>
   <div id="main" tabindex="0">
     <div id="grid"></div>
     <div id="empty" class="hidden"></div>
+  </div>
   </div>
 </div>
 
@@ -232,6 +265,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
     <button id="vTagBtn">+ <span data-t="tag"></span> (T)</button>
     <span class="row xf"><button data-xf="left">⟲</button><button data-xf="right">⟳</button><button data-xf="h">⇋</button><button data-xf="v">⇵</button></span>
     <span class="spacer"></span>
+    <span id="vGeo" class="vmeta"></span>
     <span id="vMeta" class="vmeta"></span>
     <button id="vStripBtn"></button>
     <button id="vTrash" class="danger"></button>
@@ -241,7 +275,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
 
 <dialog id="dlg"><div class="dh" id="dlgHead"></div><div class="db" id="dlgBody"></div><div class="df" id="dlgFoot"></div></dialog>
 
-<div id="progress" class="hidden"><div class="box"><div id="progText"></div><div class="bar"><div id="progBar"></div></div><div id="progSub" class="muted" style="margin-top:6px;font-size:12px"></div></div></div>
+<div id="progress" class="hidden"><div class="box"><div id="progText"></div><div class="bar"><div id="progBar"></div></div><div id="progSub" class="muted" style="margin-top:6px;font-size:12px"></div><div style="text-align:right;margin-top:10px"><button id="progCancel" class="hidden"></button></div></div></div>
 <div id="toast" class="hidden"></div>
 <input type="file" id="importFile" accept=".json,application/json" class="hidden">
 
@@ -263,9 +297,13 @@ const HEIC_EXT = new Set(['heic', 'heif']);
 const JPG_EXT = new Set(['jpg', 'jpeg']);
 const SKIP_DIRS = new Set(['$recycle.bin', 'system volume information', 'node_modules']);
 const THUMB_SIDE = 420;
-const EXIF_OPTS = { tiff: true, exif: true, gps: false, ifd1: false, interop: false, xmp: false, icc: false, iptc: false, jfif: false, ihdr: false, reviveValues: false, translateValues: false };
+const EXIF_OPTS = { tiff: true, exif: true, gps: true, ifd1: false, interop: false, xmp: false, icc: false, iptc: false, jfif: false, ihdr: false, reviveValues: false, translateValues: false };
 const LIBHEIF_LOCAL = 'lib/libheif-bundle.js';
 const LIBHEIF_CDN = 'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js';
+const LEAFLET_DIR = 'lib/leaflet/'; // Leaflet 1.9.4 + Leaflet.markercluster 1.5.3, erst beim Öffnen der Karte geladen
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
+const PLACE_GRID = 2; // Nachkommastellen beim Runden für den Ortsdienst (0,01° ≈ 1 km)
 
 /* ---------------------------- Texte DE/EN ---------------------------- */
 const I18N = {
@@ -325,11 +363,27 @@ const I18N = {
     help: 'Tastatur', helpText: [
       ['← → ↑ ↓', 'Bild wechseln'], ['1 – 5', 'Sterne vergeben'], ['0', 'Sterne entfernen'],
       ['Enter / Doppelklick', 'Einzelansicht'], ['T', 'Tags'], ['M', 'Verschieben'], ['R', 'Nach Aufnahmezeit umbenennen'], ['Strg+← / Strg+→', 'Drehen'], ['H / V', 'Spiegeln'], ['Entf', 'In Papierkorb'],
-      ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['L', 'Einzelansicht: Leiste mit allen Bildern ein-/ausblenden'], ['Esc', 'Schließen / Auswahl aufheben']],
+      ['Strg+A', 'Alle auswählen'], ['Strg / Shift + Klick', 'Mehrere auswählen'], ['L', 'Einzelansicht: Leiste mit allen Bildern ein-/ausblenden'], ['K', 'Karte ein-/ausblenden (Einzelansicht: Bild auf der Karte zeigen)'], ['Esc', 'Schließen / Auswahl aufheben']],
     heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
     noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
     newFileHint: 'Neuer Ordner: pictureselector.json wird bei der ersten Bewertung angelegt.',
     jsonBroken: 'pictureselector.json konnte nicht gelesen werden ({0}). Zum Schutz wird nichts überschrieben. Bitte die Datei prüfen oder pictureselector.bak.json zurückkopieren.',
+    mapBtn: '🗺 Karte (K)', mapTip: 'Bilder mit Ortsangabe auf einer Karte zeigen. Das Raster zeigt nur die Bilder im Kartenausschnitt.',
+    mapInfo: '{0} von {1} Bildern mit Ortsangabe', mapInfoNone: 'Keine Bilder mit Ortsangabe in dieser Auswahl.',
+    mapKeep: 'Nur Ausschnitt zeigen', mapKeepTip: 'Karte schließen, Raster bleibt auf den Kartenausschnitt gefiltert', mapClose: 'Karte schließen (Filter aufheben)',
+    mapNoGps: 'Keines dieser Bilder hat GPS-Daten (z.B. per WhatsApp verschickte Bilder haben keine).',
+    mapTilesFail: 'Kartenkacheln konnten nicht geladen werden. Ist der Computer online?', mapLibFail: 'Die Karte konnte nicht geladen werden.',
+    geoChip: '📍 Kartenausschnitt: {0} Bilder', geoChipTip: 'Filter aufheben',
+    openSingle: 'Einzelansicht', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 Auf Karte', geoOnMapTip: 'Im Picture Selector auf der Karte zeigen (K)',
+    noGeo: 'ohne Ortsangabe',
+    place: 'Ort', placeAll: 'alle Orte', placeNone: 'ohne Ortsname',
+    placesBtn: '📍 Ortsnamen ermitteln …', placesTitle: 'Ortsnamen ermitteln',
+    placesText: 'Für {0} Bilder werden {1} Orte bei OpenStreetMap (Nominatim) nachgeschlagen. Dabei werden nur auf ca. 1 km gerundete Koordinaten über das Internet gesendet, keine Bilder und keine Dateinamen. Das dauert ca. {2} (höchstens eine Anfrage pro Sekunde).',
+    placesText2: 'Die Ortsnamen werden in pictureselector.json gespeichert und danach ohne Internet verwendet: im Filter „Ort“, in der Einzelansicht und als Tag-Vorschlag.',
+    placesDone: 'Alle {0} Bilder mit Ortsangabe haben schon einen Ortsnamen.', placesNoGps: 'Keine Bilder mit GPS-Daten gefunden.',
+    placesDo: 'Nachschlagen', placesRunning: 'Ortsnamen werden ermittelt …', placesResult: '{0} Orte ermittelt.', placesStopped: 'Abgebrochen – {0} Orte ermittelt, der Rest kann später nachgeholt werden.',
+    placesFail: 'Der Ortsdienst antwortet nicht ({0}). {1} Orte ermittelt, später erneut versuchen.', stop: 'Abbrechen',
+    tagSugg: 'Vorschläge aus dem Ort:',
   },
   en: {
     tagline: 'Review, rate, tag and sort your photos – directly on your hard drive.',
@@ -387,11 +441,27 @@ const I18N = {
     help: 'Keyboard', helpText: [
       ['← → ↑ ↓', 'Change picture'], ['1 – 5', 'Set stars'], ['0', 'Remove stars'],
       ['Enter / double click', 'Single view'], ['T', 'Tags'], ['M', 'Move'], ['R', 'Rename by capture time'], ['Ctrl+← / Ctrl+→', 'Rotate'], ['H / V', 'Flip'], ['Del', 'Move to trash'],
-      ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['L', 'Single view: show/hide strip with all pictures'], ['Esc', 'Close / clear selection']],
+      ['Ctrl+A', 'Select all'], ['Ctrl / Shift + click', 'Select several'], ['L', 'Single view: show/hide strip with all pictures'], ['K', 'Show/hide map (single view: show picture on the map)'], ['Esc', 'Close / clear selection']],
     heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
     noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
     newFileHint: 'New folder: pictureselector.json will be created with the first rating.',
     jsonBroken: 'pictureselector.json could not be read ({0}). To be safe nothing will be overwritten. Please check the file or copy pictureselector.bak.json back.',
+    mapBtn: '🗺 Map (K)', mapTip: 'Show pictures with a location on a map. The grid shows only the pictures in the visible map area.',
+    mapInfo: '{0} of {1} pictures have a location', mapInfoNone: 'No pictures with a location in this selection.',
+    mapKeep: 'Show only this area', mapKeepTip: 'Close the map, keep the grid filtered to the map area', mapClose: 'Close map (remove filter)',
+    mapNoGps: 'None of these pictures has GPS data (e.g. pictures sent via WhatsApp have none).',
+    mapTilesFail: 'Map tiles could not be loaded. Is the computer online?', mapLibFail: 'The map could not be loaded.',
+    geoChip: '📍 Map area: {0} pictures', geoChipTip: 'Remove filter',
+    openSingle: 'Single view', geoOsm: 'OpenStreetMap', geoGoogle: 'Google Maps', geoOnMap: '🗺 On map', geoOnMapTip: 'Show on the map in Picture Selector (K)',
+    noGeo: 'no location',
+    place: 'Place', placeAll: 'all places', placeNone: 'no place name',
+    placesBtn: '📍 Look up place names …', placesTitle: 'Look up place names',
+    placesText: 'For {0} pictures, {1} places will be looked up at OpenStreetMap (Nominatim). Only coordinates rounded to about 1 km are sent over the internet, no pictures and no file names. This takes about {2} (at most one request per second).',
+    placesText2: 'The place names are stored in pictureselector.json and then used offline: in the “Place” filter, in the single view and as tag suggestions.',
+    placesDone: 'All {0} pictures with a location already have a place name.', placesNoGps: 'No pictures with GPS data found.',
+    placesDo: 'Look up', placesRunning: 'Looking up place names …', placesResult: '{0} places found.', placesStopped: 'Cancelled – {0} places found, the rest can be done later.',
+    placesFail: 'The place service does not respond ({0}). {1} places found, try again later.', stop: 'Cancel',
+    tagSugg: 'Suggestions from the place:',
   }
 };
 let LANG = (() => { try { return localStorage.getItem('ps.lang') || (navigator.language.startsWith('de') ? 'de' : 'en'); } catch { return 'de'; } })();
@@ -406,6 +476,9 @@ function applyLang() {
   document.querySelectorAll('[data-xf]').forEach(b => { b.title = t({ left: 'xfLeft', right: 'xfRight', h: 'xfH', v: 'xfV' }[b.dataset.xf]); });
   $('#langStart').value = LANG;
   const so = $('#fSort').options; so[0].textContent = t('sortAsc'); so[1].textContent = t('sortDesc');
+  $('#btnMap').textContent = t('mapBtn'); $('#btnMap').title = t('mapTip');
+  $('#mapKeep').textContent = t('mapKeep'); $('#mapKeep').title = t('mapKeepTip'); $('#mapClose').title = t('mapClose');
+  $('#mapPlaces').textContent = t('placesBtn');
   if (S.root) { renderFilters(); renderAll(); }
   updateRecentButton();
 }
@@ -478,7 +551,7 @@ const S = {
   selected: new Set(), // Pfade
   focus: -1, anchor: -1,
   mode: 'main',        // 'main' | 'trash'
-  filter: { folder: '', stars: {}, tags: new Set(), untagged: false, sort: 'asc' },
+  filter: { folder: '', stars: {}, tags: new Set(), untagged: false, sort: 'asc', geo: null, place: '' },
   dirty: false, saving: null, readOnly: false,
 };
 function emptyData() { return { version: 1, app: 'Picture Selector', people: ['Nico', 'Simone'], tags: [], cameraOffsets: {}, images: {} }; }
@@ -524,6 +597,7 @@ function normalizeData(d) {
   d.tags = Array.isArray(d.tags) ? d.tags : [];
   d.cameraOffsets = d.cameraOffsets || {};
   d.images = d.images || {};
+  if (d.places && typeof d.places !== 'object') delete d.places;
   for (const e of Object.values(d.images)) { e.stars = e.stars || {}; e.tags = e.tags || []; }
   return d;
 }
@@ -574,8 +648,8 @@ function cameraOf(ex) {
 async function getMeta(rec, file) {
   const key = rec.path + '|' + rec.size + '|' + rec.mtime;
   const cached = await DB.get('meta', key);
-  if (cached && cached.v === 3) return cached;
-  const m = { v: 3, quick: null, exif: null, time: null, cam: '', w: 0, h: 0, orient: 1 };
+  if (cached && cached.v === 4) return cached;
+  const m = { v: 4, quick: null, exif: null, time: null, cam: '', w: 0, h: 0, orient: 1, lat: null, lon: null };
   try { m.quick = rec.size + '|' + fnv1a(await file.slice(0, 65536).arrayBuffer()); } catch { }
   try {
     let ex = null;
@@ -588,6 +662,7 @@ async function getMeta(rec, file) {
       m.w = ex.ExifImageWidth || ex.PixelXDimension || ex.ImageWidth || 0;
       m.h = ex.ExifImageHeight || ex.PixelYDimension || ex.ImageHeight || 0;
       m.orient = ex.Orientation || 1;
+      const g = gpsOf(ex); if (g) { m.lat = g[0]; m.lon = g[1]; }
       if (mm && mm[1] !== '0000') {
         const sub = ex.SubSecTimeOriginal != null ? String(ex.SubSecTimeOriginal).trim() : '';
         m.time = Date.UTC(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5], +mm[6]) + (sub ? Math.round(parseFloat('0.' + sub) * 1000) : 0);
@@ -609,6 +684,19 @@ async function heicExifFallback(file) {
     }
   }
   return null;
+}
+// GPS-Position aus EXIF (Grad, Minuten, Sekunden + N/S/E/W) -> [lat, lon] oder null
+function gpsOf(ex) {
+  const conv = (v, ref) => {
+    if (v == null) return NaN;
+    let x = Array.isArray(v) || ArrayBuffer.isView(v) ? (+v[0] || 0) + (+v[1] || 0) / 60 + (+v[2] || 0) / 3600 : +v;
+    if (/^[SW]/i.test(String(ref || '').trim())) x = -Math.abs(x);
+    return x;
+  };
+  let lat = conv(ex.GPSLatitude, ex.GPSLatitudeRef), lon = conv(ex.GPSLongitude, ex.GPSLongitudeRef);
+  if (!isFinite(lat) || !isFinite(lon)) { lat = +ex.latitude; lon = +ex.longitude; }
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) return null;
+  return [Math.round(lat * 1e6) / 1e6, Math.round(lon * 1e6) / 1e6];
 }
 const idOf = f => { const id = {}; if (f.meta.exif) id.exif = f.meta.exif; if (f.meta.quick) id.quick = f.meta.quick; return id; };
 function computeSortTimes() {
@@ -739,6 +827,8 @@ function renderFilters() {
     l.appendChild(s); box.appendChild(l);
   });
   $('#fSort').value = S.filter.sort;
+  renderPlaceFilter();
+  renderGeoChip();
   renderTagFilter();
   renderPersonSel();
   $('#btnTrashView').textContent = S.mode === 'trash' ? t('backToPhotos') : t('trashView', S.files.filter(isTrash).length);
@@ -755,12 +845,14 @@ function renderTagFilter() {
   u.onclick = () => { S.filter.untagged = !S.filter.untagged; if (S.filter.untagged) S.filter.tags.clear(); renderTagFilter(); renderAll(); };
   box.appendChild(u);
 }
-function computeView(ignoreStarsOf) {
+function computeView(ignoreStarsOf, ignoreGeo) {
   const F = S.filter;
   const v = S.files.filter(f => {
     if (S.mode === 'trash') return isTrash(f);
     if (isTrash(f)) return false;
     if (F.folder && !(f.dir === F.folder || f.dir.startsWith(F.folder + '/'))) return false;
+    if (F.geo && !ignoreGeo && !inBounds(f, F.geo)) return false;
+    if (F.place && !placeMatch(f, F.place)) return false;
     for (const p of S.data.people) {
       if (p === ignoreStarsOf) continue;
       const c = F.stars[p]; if (!c || c === 'any') continue;
@@ -772,7 +864,7 @@ function computeView(ignoreStarsOf) {
     for (const x of F.tags) if (!tg.includes(x)) return false;
     return true;
   });
-  if (ignoreStarsOf) return v;
+  if (ignoreStarsOf || ignoreGeo) return v;
   const dir = F.sort === 'desc' ? -1 : 1;
   v.sort((a, b) => (a.sortTime - b.sortTime) * dir || a.path.localeCompare(b.path));
   return v;
@@ -842,6 +934,7 @@ function renderAll() {
   document.body.classList.toggle('trashmode', S.mode === 'trash');
   renderStats();
   renderCrumb();
+  if (M.open) updateMapMarkers(false); else renderGeoChip();
   document.querySelectorAll('.normalOnly').forEach(e => e.classList.toggle('hidden', S.mode === 'trash'));
   document.querySelectorAll('.trashOnly').forEach(e => e.classList.toggle('hidden', S.mode !== 'trash'));
   updateSelUi();
@@ -872,7 +965,8 @@ function fillTile(f) {
   const others = S.data.people.filter(p => p !== S.person && starsOf(f, p)).map(p => { const n = starsOf(f, p);
     return `<div class="orow" title="${esc(p)}: ${n} ★"><span class="who">${esc(p[0])}:</span><span class="ostars">${[1, 2, 3, 4, 5].map(i => `<span class="${i <= n ? 'on' : ''}">★</span>`).join('')}</span></div>`; }).join('');
   const tg = tagsOf(f);
-  d.title = f.path + (tg.length ? '\n' + tg.join(', ') : '');
+  const pl = placeOf(f);
+  d.title = f.path + (tg.length ? '\n' + tg.join(', ') : '') + (pl ? '\n📍 ' + placeLabel(pl) : '');
   d.classList.toggle('sel', S.selected.has(f.path));
   const xs = xfCss(viewOrient(f));
   d.innerHTML = (f.thumbUrl ? `<img src="${f.thumbUrl}" alt=""${xs ? ` style="transform:${xs}"` : ''}>` : `<div class="ph">${f.thumbErr ? '⚠ ' : ''}${esc(f.name)}</div>`) +
@@ -1064,6 +1158,7 @@ function renderViewerBar() {
   const ds = d.toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'medium' });
   $('#vMeta').textContent = `${V.idx + 1}/${S.view.length} · ${f.path} · ${ds} · ${f.meta && f.meta.cam ? f.meta.cam : (f.meta && f.meta.time != null ? t('unknownCam') : t('noExif'))}`;
   $('#vTrash').textContent = S.mode === 'trash' ? t('restore') : '🗑 ' + t('toTrash') + ' (Entf)';
+  renderViewerGeo(f);
   renderStrip();
 }
 /* Leiste rechts: alle Bilder der aktuellen Auswahl zum Durchscrollen.
@@ -1116,6 +1211,249 @@ function renderStrip() {
 }
 function viewerStep(d) { const i = V.idx + d; if (i >= 0 && i < S.view.length) { V.idx = i; showViewer(); } }
 
+/* ---------------------------- Ort (GPS) ---------------------------- */
+const hasGeo = f => !!(f.meta && f.meta.lat != null && f.meta.lon != null);
+const fmtCoord = (v, pos, neg) => Math.abs(v).toFixed(5) + '° ' + (v < 0 ? neg : pos);
+const coordStr = f => fmtCoord(f.meta.lat, 'N', 'S') + ', ' + fmtCoord(f.meta.lon, LANG === 'de' ? 'O' : 'E', 'W');
+const cellKey = (lat, lon) => lat.toFixed(PLACE_GRID) + ',' + lon.toFixed(PLACE_GRID);
+function placeOf(f) {
+  if (!hasGeo(f) || !S.data || !S.data.places) return null;
+  const p = S.data.places[cellKey(f.meta.lat, f.meta.lon)];
+  return p && !p.none ? p : null;
+}
+const placeLabel = p => [p.city, p.country].filter(Boolean).join(', ');
+function inBounds(f, b) {
+  if (!hasGeo(f)) return false;
+  const { lat, lon } = f.meta;
+  return lat >= b.s && lat <= b.n && (b.w <= b.e ? lon >= b.w && lon <= b.e : lon >= b.w || lon <= b.e);
+}
+// Filterwerte: 'c:<Land>' | 'p:<Land>|<Ort>' | 'none' (kein Ortsname)
+function placeMatch(f, v) {
+  const p = placeOf(f);
+  if (v === 'none') return !p;
+  if (!p) return false;
+  if (v.startsWith('c:')) return (p.country || '') === v.slice(2);
+  return (p.country || '') + '|' + (p.city || '') === v.slice(2);
+}
+function renderPlaceFilter() {
+  const wrap = $('#fPlaceWrap'), sel = $('#fPlace');
+  const places = S.data.places || {};
+  const countries = new Map(); let without = 0;
+  for (const f of S.files) {
+    if (isTrash(f)) continue;
+    const p = placeOf(f);
+    if (!p) { without++; continue; }
+    const c = countries.get(p.country || '') || countries.set(p.country || '', { n: 0, cities: new Map() }).get(p.country || '');
+    c.n++; c.cities.set(p.city || '', (c.cities.get(p.city || '') || 0) + 1);
+  }
+  const any = Object.keys(places).length > 0 && countries.size > 0;
+  wrap.classList.toggle('hidden', !any);
+  if (!any) { if (S.filter.place) S.filter.place = ''; return; }
+  sel.innerHTML = '';
+  sel.add(new Option(t('placeAll'), ''));
+  [...countries.entries()].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0])).forEach(([cn, c]) => {
+    sel.add(new Option(`${cn || '?'} (${c.n})`, 'c:' + cn));
+    [...c.cities.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).forEach(([ci, n]) => sel.add(new Option(`   ${ci || '?'} (${n})`, 'p:' + cn + '|' + ci)));
+  });
+  sel.add(new Option(`${t('placeNone')} (${without})`, 'none'));
+  sel.value = S.filter.place;
+  if (sel.value !== S.filter.place) { S.filter.place = ''; sel.value = ''; }
+}
+function renderGeoChip() {
+  const c = $('#geoChip');
+  const show = !!S.filter.geo && !M.open && S.mode !== 'trash';
+  c.classList.toggle('hidden', !show);
+  if (!show) return;
+  c.innerHTML = `${esc(t('geoChip', computeView().length))}<b title="${esc(t('geoChipTip'))}">✕</b>`;
+  c.querySelector('b').onclick = () => { S.filter.geo = null; renderFilters(); renderAll(); };
+}
+function renderViewerGeo(f) {
+  const box = $('#vGeo');
+  if (!hasGeo(f)) { box.textContent = ''; return; }
+  const { lat, lon } = f.meta; const pl = placeOf(f);
+  box.innerHTML = `📍 ${pl ? `<b>${esc(placeLabel(pl))}</b> · ` : ''}<span>${esc(coordStr(f))}</span>` +
+    `<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}" target="_blank" rel="noopener">${esc(t('geoOsm'))}</a>` +
+    `<a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" rel="noopener">${esc(t('geoGoogle'))}</a>` +
+    `<button id="vOnMap" title="${esc(t('geoOnMapTip'))}">${esc(t('geoOnMap'))}</button>`;
+  box.querySelector('#vOnMap').onclick = () => showOnMap(f);
+}
+function showOnMap(f) {
+  if (!f || !hasGeo(f)) return;
+  closeViewer();
+  openMap(f);
+}
+
+/* ---------------------------- Kartenansicht (Leaflet) ---------------------------- */
+const M = { open: false, map: null, cluster: null, markers: new Map(), base: null, libPromise: null, tileFailShown: false, applying: false };
+function loadLeaflet() {
+  if (M.libPromise) return M.libPromise;
+  const css = href => new Promise(res => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.onload = l.onerror = res; document.head.appendChild(l); });
+  const js = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
+  M.libPromise = Promise.all([css(LEAFLET_DIR + 'leaflet.css'), css(LEAFLET_DIR + 'MarkerCluster.css'), css(LEAFLET_DIR + 'MarkerCluster.Default.css')])
+    .then(() => js(LEAFLET_DIR + 'leaflet.js')).then(() => js(LEAFLET_DIR + 'leaflet.markercluster.js'))
+    .catch(e => { M.libPromise = null; throw e; });
+  return M.libPromise;
+}
+function mapNote(msg) { const n = $('#mapNote'); n.textContent = msg || ''; n.classList.toggle('hidden', !msg); }
+async function openMap(focusFile) {
+  if (S.mode === 'trash') return;
+  try { await loadLeaflet(); } catch { toast(t('mapLibFail'), 6000); return; }
+  M.open = true;
+  $('#mapPane').classList.remove('hidden');
+  $('#btnMap').classList.add('primary');
+  if (!M.map) {
+    M.map = L.map('map', { worldCopyJump: true, zoomControl: true, keyboard: true });
+    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' })
+      .on('tileerror', () => { if (!M.tileFailShown) { M.tileFailShown = true; toast(t('mapTilesFail'), 6000); } })
+      .addTo(M.map);
+    M.cluster = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
+    M.map.addLayer(M.cluster);
+    M.map.on('moveend', onMapMove);
+    M.map.setView([30, 10], 2);
+  }
+  M.map.invalidateSize();
+  M.base = null;
+  updateMapMarkers(true);
+  renderGeoChip();
+  if (focusFile) {
+    const mk = M.markers.get(focusFile.path);
+    M.map.setView([focusFile.meta.lat, focusFile.meta.lon], 16, { animate: false });
+    if (mk) M.cluster.zoomToShowLayer(mk, () => mk.openPopup());
+  }
+  onMapMove();
+}
+function closeMap(keepFilter) {
+  if (!M.open) return;
+  M.open = false;
+  $('#mapPane').classList.add('hidden');
+  $('#btnMap').classList.remove('primary');
+  if (M.map) M.map.closePopup();
+  if (!keepFilter) S.filter.geo = null;
+  renderFilters(); renderAll();
+  $('#main').focus();
+}
+function toggleMap() { M.open ? closeMap(false) : openMap(); }
+// Grundmenge der Karte: alle übrigen Filter, aber nicht der Kartenausschnitt selbst
+function updateMapMarkers(fit) {
+  if (!M.open || !M.cluster) return;
+  const all = computeView(null, true);
+  const base = all.filter(hasGeo);
+  const same = M.base && M.base.length === base.length && base.every((f, i) => M.base[i] === f);
+  $('#mapInfo').textContent = base.length ? t('mapInfo', base.length, all.length) : t('mapInfoNone');
+  mapNote(!base.length && all.length ? t('mapNoGps') : '');
+  if (same) return;
+  M.base = base;
+  M.cluster.clearLayers(); M.markers.clear();
+  const icon = L.divIcon({ className: 'psPin', iconSize: [14, 14] });
+  const list = base.map(f => {
+    const mk = L.marker([f.meta.lat, f.meta.lon], { icon, title: f.name });
+    mk.bindPopup(() => popupFor(f), { minWidth: 200, maxWidth: 220 });
+    mk.on('click', () => { const i = S.view.indexOf(f); if (i >= 0) setFocus(i, 'single'); });
+    M.markers.set(f.path, mk);
+    return mk;
+  });
+  M.cluster.addLayers(list);
+  if (fit && base.length) {
+    const b = L.latLngBounds(base.map(f => [f.meta.lat, f.meta.lon]));
+    M.map.fitBounds(b.pad(0.1), { maxZoom: 15, animate: false });
+  }
+}
+function popupFor(f) {
+  const d = document.createElement('div'); d.className = 'psPop';
+  const pl = placeOf(f);
+  const ds = new Date(f.sortTime).toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' });
+  const n = starsOf(f);
+  d.innerHTML = `<img alt=""><div class="nm">${esc(f.name)}</div><div>${esc(ds)}${pl ? ' · ' + esc(placeLabel(pl)) : ''}</div>` +
+    (n ? `<div class="st">${starStr(n)}</div>` : '') + `<button>${esc(t('openSingle'))}</button>`;
+  const img = d.querySelector('img');
+  const open = () => { const i = S.view.indexOf(f); if (i >= 0) { M.map.closePopup(); openViewer(i); } };
+  img.onclick = open; d.querySelector('button').onclick = open;
+  const xs = xfCss(viewOrient(f)); if (xs) img.style.transform = xs;
+  if (f.thumbUrl) img.src = f.thumbUrl;
+  else Thumbs.make(f).then(() => { if (f.thumbUrl) img.src = f.thumbUrl; });
+  return d;
+}
+function onMapMove() {
+  if (!M.open || !M.map) return;
+  const b = M.map.getBounds();
+  let w = b.getWest(), e = b.getEast();
+  const geo = { s: b.getSouth(), n: b.getNorth(), w, e };
+  if (e - w >= 360) { geo.w = -180; geo.e = 180; }
+  else { geo.w = L.Util.wrapNum(w, [-180, 180], true); geo.e = L.Util.wrapNum(e, [-180, 180], true); }
+  S.filter.geo = geo;
+  M.applying = true; renderAll(); M.applying = false;
+}
+
+/* ---------------------------- Ortsnamen (Nominatim, nur auf Knopfdruck) ---------------------------- */
+function placesTodo() {
+  const places = S.data.places || {};
+  const cells = new Map(); let withGeo = 0, need = 0;
+  for (const f of S.files) {
+    if (isTrash(f) || !hasGeo(f)) continue;
+    withGeo++;
+    const k = cellKey(f.meta.lat, f.meta.lon);
+    if (places[k]) continue;
+    need++; cells.set(k, (cells.get(k) || 0) + 1);
+  }
+  return { withGeo, need, cells: [...cells.keys()] };
+}
+function placesDialog() {
+  if (S.readOnly) return;
+  const td = placesTodo();
+  if (!td.withGeo) { openDialog(t('placesTitle'), `<p>${esc(t('placesNoGps'))}</p>`, [[t('close'), closeDialog, 'primary']]); return; }
+  if (!td.cells.length) { openDialog(t('placesTitle'), `<p>${esc(t('placesDone', td.withGeo))}</p>`, [[t('close'), closeDialog, 'primary']]); return; }
+  const sec = Math.ceil(td.cells.length * 1.1);
+  const dur = sec < 90 ? sec + ' s' : Math.ceil(sec / 60) + ' min';
+  openDialog(t('placesTitle'), `<p>${esc(t('placesText', td.need, td.cells.length, dur))}</p><p class="muted">${esc(t('placesText2'))}</p>`,
+    [[t('cancel'), closeDialog], [t('placesDo'), () => { closeDialog(); lookupPlaces(td.cells); }, 'primary']]);
+}
+function parsePlace(j) {
+  if (!j || j.error || !j.address) return { none: true };
+  const a = j.address;
+  const city = a.city || a.town || a.village || a.municipality || a.hamlet || a.suburb || a.county || a.state || j.name || '';
+  return { city, region: a.state || a.county || '', country: a.country || '', cc: (a.country_code || '').toUpperCase() };
+}
+async function lookupPlaces(cells) {
+  if (!S.data.places) S.data.places = {};
+  let stop = false, found = 0, fails = 0, err = '';
+  const cancel = $('#progCancel'); cancel.textContent = t('stop'); cancel.classList.remove('hidden'); cancel.onclick = () => { stop = true; };
+  let last = 0;
+  try {
+    for (let i = 0; i < cells.length && !stop; i++) {
+      progress(t('placesRunning'), i, cells.length);
+      const wait = last + 1100 - Date.now(); if (wait > 0) await sleep(wait);
+      if (stop) break;
+      last = Date.now();
+      const [lat, lon] = cells[i].split(',');
+      try {
+        const r = await fetch(`${NOMINATIM}?format=jsonv2&zoom=10&addressdetails=1&lat=${lat}&lon=${lon}&accept-language=${LANG}`, { referrerPolicy: 'strict-origin-when-cross-origin' });
+        if (r.status === 429 || r.status === 403) { err = 'HTTP ' + r.status; break; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        S.data.places[cells[i]] = parsePlace(await r.json());
+        if (!S.data.places[cells[i]].none) found++;
+        fails = 0;
+        if (i % 15 === 14) markDirty();
+      } catch (e) { err = e.message; if (++fails >= 3) break; }
+    }
+  } finally {
+    cancel.classList.add('hidden'); cancel.onclick = null;
+    progress(null);
+  }
+  markDirty(); renderFilters(); renderAll();
+  if (V.open) renderViewerBar();
+  const left = placesTodo().cells.length;
+  if (stop) toast(t('placesStopped', found), 6000);
+  else if (left && err) toast(t('placesFail', err, found), 8000);
+  else toast(t('placesResult', found));
+}
+// Tag-Vorschläge aus den Ortsnamen der gewählten Bilder (Ort und Land)
+function placeSuggestions(list) {
+  const cnt = new Map();
+  for (const f of list) { const p = placeOf(f); if (!p) continue; for (const x of [p.city, p.country]) if (x) cnt.set(x, (cnt.get(x) || 0) + 1); }
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(([x]) => x)
+    .filter(x => !list.every(f => tagsOf(f).includes(x))).slice(0, 8);
+}
+
 /* ---------------------------- Dialoge ---------------------------- */
 function openDialog(title, body, buttons, opt = {}) {
   const dlg = $('#dlg');
@@ -1136,6 +1474,13 @@ function tagDialog(list) {
     body.innerHTML = `<p class="muted">${esc(t('tagHint'))}</p><div class="row" style="margin-bottom:10px"><input type="text" id="newTag" placeholder="${esc(t('newTag'))}" style="flex:1"><button id="addTag">${esc(t('addTag'))}</button></div><div class="row" id="tagChips"></div>`;
     const box = body.querySelector('#tagChips');
     if (!S.data.tags.length) box.innerHTML = `<span class="muted">${esc(t('noTags'))}</span>`;
+    const sug = placeSuggestions(list);
+    if (sug.length) {
+      const sb = document.createElement('div'); sb.className = 'row'; sb.id = 'tagSugg'; sb.style.marginTop = '12px';
+      sb.innerHTML = `<span class="muted">📍 ${esc(t('tagSugg'))}</span>`;
+      sug.forEach(x => { const c = document.createElement('span'); c.className = 'chip sugg'; c.textContent = '+ ' + x; c.onclick = () => { toggleTag(list, x, true); draw(); if (V.open) renderViewerBar(); }; sb.appendChild(c); });
+      box.after(sb);
+    }
     S.data.tags.forEach(tg => {
       const cnt = list.filter(f => tagsOf(f).includes(tg)).length;
       const c = document.createElement('span'); c.className = 'chip' + (cnt === list.length ? ' on' : cnt ? ' some' : ''); c.textContent = tg;
@@ -1552,6 +1897,7 @@ function exportDialog() {
     [t('cancel'), closeDialog],
     [t('exportDo'), async () => {
       const out = { type: 'pictureselector-export', version: 1, appVersion: APP_VERSION, person: S.person, exportedAt: new Date().toISOString(), folder: S.root.name, tags: S.data.tags, images: [] };
+      if (S.data.places && Object.keys(S.data.places).length) out.places = S.data.places; // spart dem anderen Computer das Nachschlagen
       for (const [p, e] of Object.entries(S.data.images)) {
         const has = e.stars[S.person] != null;
         if (!has && !e.tags.length) continue;
@@ -1590,6 +1936,7 @@ function applyImport(d) {
   const who = String(d.person);
   addPerson(who);
   (d.tags || []).forEach(tg => { if (!S.data.tags.includes(tg)) S.data.tags.push(tg); });
+  if (d.places && typeof d.places === 'object') { S.data.places = S.data.places || {}; for (const [k, v] of Object.entries(d.places)) if (!S.data.places[k] && v && typeof v === 'object') S.data.places[k] = v; }
   const live = S.files.filter(f => !isTrash(f));
   const idx = buildIndex(S.files);
   const r = { matched: 0, notFound: [], amb: 0 };
@@ -1707,7 +2054,12 @@ function bind() {
     if (e.target.value === '__new') { const n = (prompt(t('newPersonName')) || '').trim(); if (n) { addPerson(n); setPerson(n); } else renderPersonSel(); }
     else setPerson(e.target.value);
   };
-  $('#btnTrashView').onclick = () => { S.mode = S.mode === 'trash' ? 'main' : 'trash'; S.selected.clear(); S.focus = -1; renderFilters(); renderAll(); $('#main').scrollTop = 0; };
+  $('#btnMap').onclick = toggleMap;
+  $('#mapClose').onclick = () => closeMap(false);
+  $('#mapKeep').onclick = () => closeMap(true);
+  $('#mapPlaces').onclick = placesDialog;
+  $('#fPlace').onchange = e => { S.filter.place = e.target.value; renderAll(); };
+  $('#btnTrashView').onclick = () => { if (M.open) closeMap(false); S.mode = S.mode === 'trash' ? 'main' : 'trash'; S.selected.clear(); S.focus = -1; renderFilters(); renderAll(); $('#main').scrollTop = 0; };
   $('#btnExport').onclick = exportDialog;
   $('#btnImport').onclick = () => $('#importFile').click();
   $('#importFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); };
@@ -1759,9 +2111,11 @@ async function viewerTrash() {
 function onKey(e) {
   if ($('#dlg').open || !S.person || $('#app').classList.contains('hidden')) return;
   const tag = e.target.tagName; if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (!V.open && e.target.closest && e.target.closest('#map') && e.key !== 'k' && e.key !== 'K') return; // Pfeiltasten/+/- gehören der Karte
   const k = e.key;
   if (V.open) {
     const f = S.view[V.idx];
+    if ((k === 'k' || k === 'K') && !e.ctrlKey && !e.metaKey) { if (hasGeo(f)) showOnMap(f); return; }
     if (xfKey(e)) { e.preventDefault(); transformFiles([f], xfKey(e)); }
     else if (k === 'ArrowRight' || k === ' ') { viewerStep(1); e.preventDefault(); }
     else if (k === 'ArrowLeft') { viewerStep(-1); e.preventDefault(); }
@@ -1784,6 +2138,7 @@ function onKey(e) {
   else if (k === 'Home') { setFocus(0, mode); e.preventDefault(); }
   else if (k === 'End') { setFocus(S.view.length - 1, mode); e.preventDefault(); }
   else if (k === 'Enter') { if (S.view.length) openViewer(S.focus < 0 ? 0 : S.focus); }
+  else if ((k === 'k' || k === 'K') && !e.ctrlKey && !e.metaKey && S.mode !== 'trash') toggleMap();
   else if (k === 'Escape') { S.selected.clear(); renderAll(); }
   else if ((k === 'a' || k === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); S.view.forEach(f => S.selected.add(f.path)); renderAll(); }
   else if (/^[0-5]$/.test(k) && !e.ctrlKey && S.mode !== 'trash') setStars(targetFiles(), +k);
