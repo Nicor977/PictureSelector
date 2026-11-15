@@ -28,6 +28,7 @@ page.on('pageerror', e => { console.log('PAGE ERROR', e.message); failed++; });
 page.on('dialog', d => { console.log('     [dialog]', d.type(), d.message().slice(0, 60)); d.accept(); });
 page.on('crash', () => console.log('CRASH'));
 page.on('close', () => console.log('CLOSE'));
+page.on('console', m => { if (m.text().includes('übersprungen')) console.log('     [warn]', m.text().slice(0, 100)); });
 
 const URL_ = 'http://localhost:8123/index.html';
 // Hilfsfunktionen im Browser
@@ -444,6 +445,31 @@ await page.click('#main'); await page.keyboard.press('k'); await page.waitForSel
 await page.click('#mapPlaces'); await page.waitForSelector('#dlg[open]');
 check(/already have a place name/.test(await page.textContent('#dlgBody')) && nomReq.length === 3, 'zweites Mal: alles schon bekannt, keine neue Anfrage');
 await page.keyboard.press('Escape'); await page.click('#mapClose');
+
+console.log('15) Robustheit: unlesbare Datei, fehlender Ordner, Tag löschen mit Drehung');
+// I-003: Tag löschen darf eine gemerkte Drehung nicht entfernen
+await page.evaluate(() => { S.data.images['2025/Kroatien/IMG_0042.heic'] = { stars: {}, tags: ['Weg'], orient: 6, id: {} }; S.data.tags.push('Weg'); S.data.images['2025/Kroatien/IMG_0042.heic'].tags = ['Weg']; });
+await page.click('#btnSettings'); await page.waitForSelector('#dlg[open]');
+await page.click('#setTagList .it:has-text("Weg") button.danger'); // confirm wird vom Test akzeptiert
+await page.waitForTimeout(200);
+check(await page.evaluate(() => S.data.images['2025/Kroatien/IMG_0042.heic']?.orient === 6), 'I-003: Drehung bleibt beim Tag-Löschen erhalten');
+await page.keyboard.press('Escape');
+// I-002: fehlender Ordner aus der Liste: Meldung, Startseite bleibt sichtbar
+await page.goto(URL_);
+const goneOk = await page.evaluate(async () => {
+  const opfs = await navigator.storage.getDirectory(); const gone = await opfs.getDirectoryHandle('Weg', { create: true }); await opfs.removeEntry('Weg');
+  try { await openRoot(gone); return 'ok'; } catch (e) { return 'FEHLER ' + e.name + ' ' + e.message; }
+});
+check(goneOk === 'ok' && await page.isVisible('#start') && /cannot be reached|nicht erreichbar/.test(await page.textContent('#toast')), 'I-002: fehlender Ordner zeigt Meldung, Startseite bleibt ' + goneOk + ' / ' + await page.textContent('#toast'));
+// I-001: eine unlesbare Datei darf den Ordner nicht blockieren
+await page.goto(URL_); await page.evaluate(() => {
+  const orig = FileSystemFileHandle.prototype.getFile;
+  FileSystemFileHandle.prototype.getFile = function () { if (this.name === '20250816_120000.jpg') return Promise.reject(new DOMException('gesperrt', 'NotReadableError')); return orig.call(this); };
+});
+await page.click('#btnOpen'); await page.waitForSelector('#dlg[open] .persons button'); await page.click('#dlg .persons button:has-text("Nico")');
+await page.waitForSelector('#grid .tile', { timeout: 20000 }).catch(() => console.log('kein Raster')); await page.waitForTimeout(500);
+check((await tileNames()).length === 8 && await page.isHidden('#progress'), 'I-001: unlesbare Datei übersprungen, übrige 8 Bilder erscheinen: ' + (await tileNames()).length);
+check(/übersprungen|skipped/.test(await page.textContent('#toast')), 'I-001: Hinweis zeigt Anzahl');
 
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} FEHLER` : '\nAlle Tests bestanden');

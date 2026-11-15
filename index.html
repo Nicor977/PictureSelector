@@ -387,6 +387,8 @@ const I18N = {
     heicLoading: 'HEIC-Unterstützung wird geladen …', heicFail: 'HEIC-Bilder können nicht angezeigt werden (Decoder nicht geladen).',
     noExif: 'kein EXIF', unknownCam: 'Unbekannt', leaveWarn: 'Es gibt ungespeicherte Änderungen.',
     newFileHint: 'Neuer Ordner: pictureselector.json wird bei der ersten Bewertung angelegt.',
+    folderGone: 'Der Ordner „{0}“ ist nicht erreichbar. Ist das Laufwerk angesteckt oder der Ordner umbenannt?',
+    skippedFiles: '{0} Datei(en) oder Ordner konnten nicht gelesen werden und wurden übersprungen (z.B. {1}).',
     jsonBroken: 'pictureselector.json konnte nicht gelesen werden ({0}). Zum Schutz wird nichts überschrieben. Bitte die Datei prüfen oder pictureselector.bak.json zurückkopieren.',
     mapBtn: '🗺 Karte (K)', mapTip: 'Bilder mit Ortsangabe auf einer Karte zeigen. Das Raster zeigt nur die Bilder im Kartenausschnitt.',
     mapInfo: '{0} von {1} Bildern mit Ortsangabe', mapInfoNone: 'Keine Bilder mit Ortsangabe in dieser Auswahl.',
@@ -468,6 +470,8 @@ const I18N = {
     heicLoading: 'Loading HEIC support …', heicFail: 'HEIC pictures cannot be shown (decoder not loaded).',
     noExif: 'no EXIF', unknownCam: 'Unknown', leaveWarn: 'There are unsaved changes.',
     newFileHint: 'New folder: pictureselector.json will be created with the first rating.',
+    folderGone: 'The folder "{0}" cannot be reached. Is the drive connected or the folder renamed?',
+    skippedFiles: '{0} file(s) or folder(s) could not be read and were skipped (e.g. {1}).',
     jsonBroken: 'pictureselector.json could not be read ({0}). To be safe nothing will be overwritten. Please check the file or copy pictureselector.bak.json back.',
     mapBtn: '🗺 Map (K)', mapTip: 'Show pictures with a location on a map. The grid shows only the pictures in the visible map area.',
     mapInfo: '{0} of {1} pictures have a location', mapInfoNone: 'No pictures with a location in this selection.',
@@ -636,6 +640,8 @@ async function openRoot(handle) {
   let perm = await handle.queryPermission({ mode: 'readwrite' });
   if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
   if (perm !== 'granted') { toast(t('permDenied')); return; }
+  try { for await (const _ of handle.keys()) break; } // Ordner noch vorhanden (Laufwerk angesteckt?)
+  catch (e) { toast(t('folderGone', handle.name), 9000); return; }
   if (S.root) await saveNow();
   S.root = handle;
   S.filter.folder = ''; S.mode = 'main'; S.selected.clear(); S.focus = -1;
@@ -673,31 +679,37 @@ async function scanAll() {
   S.files = []; S.byPath.clear(); S.dirs.clear(); S.selected.clear(); S.focus = -1;
   progress(t('scanning'), 0, 0, t('scanFound', 0));
   const found = [];
+  const skipped = []; // nicht lesbare Ordner oder Dateien: überspringen statt abbrechen
   async function walk(dir, rel) {
     S.dirs.set(rel, dir);
     for await (const [name, h] of dir.entries()) {
       if (name.startsWith('.')) continue;
-      if (h.kind === 'directory') {
-        if (SKIP_DIRS.has(name.toLowerCase())) continue;
-        await walk(h, joinPath(rel, name));
-      } else if (IMG_EXT.has(extOf(name))) {
-        found.push({ name, dir: rel, dirHandle: dir, handle: h });
-        if (found.length % 200 === 0) progress(t('scanning'), 0, 0, t('scanFound', found.length));
-      }
+      try {
+        if (h.kind === 'directory') {
+          if (SKIP_DIRS.has(name.toLowerCase())) continue;
+          await walk(h, joinPath(rel, name));
+        } else if (IMG_EXT.has(extOf(name))) {
+          found.push({ name, dir: rel, dirHandle: dir, handle: h });
+          if (found.length % 200 === 0) progress(t('scanning'), 0, 0, t('scanFound', found.length));
+        }
+      } catch (e) { skipped.push(joinPath(rel, name)); console.warn('übersprungen', joinPath(rel, name), e); }
     }
   }
-  await walk(S.root, '');
+  try { await walk(S.root, ''); } catch (e) { skipped.push(S.root.name); console.warn('Ordner', e); }
   progress(t('readingMeta'), 0, found.length);
   let lastUi = 0;
   await pool(found, 6, async (f) => {
-    const file = await f.handle.getFile();
-    const rec = {
-      path: joinPath(f.dir, f.name), name: f.name, dir: f.dir, dirHandle: f.dirHandle, handle: f.handle,
-      size: file.size, mtime: file.lastModified, ext: extOf(f.name), meta: null, thumbUrl: null,
-    };
-    rec.meta = await getMeta(rec, file);
-    S.files.push(rec); S.byPath.set(rec.path, rec);
+    try {
+      const file = await f.handle.getFile();
+      const rec = {
+        path: joinPath(f.dir, f.name), name: f.name, dir: f.dir, dirHandle: f.dirHandle, handle: f.handle,
+        size: file.size, mtime: file.lastModified, ext: extOf(f.name), meta: null, thumbUrl: null,
+      };
+      rec.meta = await getMeta(rec, file);
+      S.files.push(rec); S.byPath.set(rec.path, rec);
+    } catch (e) { skipped.push(joinPath(f.dir, f.name)); console.warn('übersprungen', f.name, e); }
   }, (d, n) => { const now = performance.now(); if (now - lastUi > 100 || d === n) { lastUi = now; progress(t('readingMeta'), d, n); } });
+  if (skipped.length) toast(t('skippedFiles', skipped.length, skipped[0]), 9000);
   for (const f of S.files) { const e = S.data.images[f.path]; if (e && f.meta) e.id = idOf(f); }
   progress(null);
   computeSortTimes();
@@ -810,9 +822,11 @@ function entryOf(f, create) {
   if (!e && create) { e = S.data.images[f.path] = { stars: {}, tags: [] }; if (f.meta) e.id = idOf(f); }
   return e;
 }
+// Ein Eintrag bleibt, solange er Sterne, Tags oder eine gemerkte Drehung hat
+const isEmptyEntry = e => !Object.keys(e.stars).length && !e.tags.length && !e.orient;
 function pruneEntry(f) {
   const e = S.data.images[f.path];
-  if (e && !Object.keys(e.stars).length && !e.tags.length && !e.orient) delete S.data.images[f.path];
+  if (e && isEmptyEntry(e)) delete S.data.images[f.path];
 }
 function starsOf(f, person = S.person) { const e = S.data.images[f.path]; return (e && e.stars[person]) || 0; }
 function tagsOf(f) { const e = S.data.images[f.path]; return e ? e.tags : []; }
@@ -2083,7 +2097,7 @@ function settingsDialog() {
       const dl = document.createElement('button'); dl.className = 'link danger'; dl.textContent = t('del');
       dl.onclick = () => {
         if (!confirm(t('tagDeleteConfirm', tg))) return;
-        for (const [p, e] of Object.entries(S.data.images)) { const i = e.tags.indexOf(tg); if (i >= 0) e.tags.splice(i, 1); if (!Object.keys(e.stars).length && !e.tags.length) delete S.data.images[p]; }
+        for (const [p, e] of Object.entries(S.data.images)) { const i = e.tags.indexOf(tg); if (i >= 0) e.tags.splice(i, 1); if (isEmptyEntry(e)) delete S.data.images[p]; }
         S.data.tags = S.data.tags.filter(x => x !== tg); S.filter.tags.delete(tg);
         markDirty(); renderTagFilter(); renderAll(); draw();
       };
