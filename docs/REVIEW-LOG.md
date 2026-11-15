@@ -8,9 +8,9 @@ Neueste oben. Dient für Nachprüfungen, ohne Diffs erneut abzurufen.
 - Empfehlung: 🟡 in Ordnung, mit Anmerkungen. Kein Befund betrifft einen offenen PR.
 - Nachgestellt im Browser: I-001, I-002, I-003, I-012, I-014. Geschwindigkeit mit 6.000 Testbildern gemessen (unkritisch).
 - Offene Befunde:
-  - [ ] 🟠 `index.html:672` (`scanAll`): Eine unlesbare Datei blockiert das Öffnen des ganzen Ordners (I-001)
-  - [ ] 🟠 `index.html:635` (`openRoot`): Fehlender Ordner aus „Zuletzt geöffnet“ lässt die App leer hängen (I-002)
-  - [ ] 🟠 `index.html:2086` (`settingsDialog`): Tag löschen entfernt gemerkte HEIC-Drehung (I-003)
+  - [x] 🟠 `index.html:672` (`scanAll`): Unlesbare Datei blockiert das Öffnen des ganzen Ordners (I-001), behoben in PR #6
+  - [x] 🟠 `index.html:635` (`openRoot`): Fehlender Ordner aus „Zuletzt geöffnet“ lässt die App leer hängen (I-002), behoben in PR #6
+  - [x] 🟠 `index.html:2086` (`settingsDialog`): Tag löschen entfernt gemerkte HEIC-Drehung (I-003), behoben in PR #6
 - Nach IMPROVEMENTS.md verschoben: I-001 bis I-024
 
 ## Bisherige PRs (nicht einzeln reviewt)

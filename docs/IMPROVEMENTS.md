@@ -9,9 +9,6 @@ Die Tabelle ist die Übersicht. Zu jedem Punkt stehen weiter unten unter „Deta
 ## Offen
 | ID | Prio | Bereich | Beschreibung | Gefunden in | Aufwand |
 |---|---|---|---|---|---|
-| I-001 | H | `scanAll()` | Eine unlesbare Datei blockiert das Öffnen des ganzen Ordners | Gesamt-Review, 15.11.2026 | S |
-| I-002 | H | `openRoot()` | Ordner aus „Zuletzt geöffnet“ fehlt: App bleibt leer hängen | Gesamt-Review, 15.11.2026 | S |
-| I-003 | H | `settingsDialog()` | Tag löschen entfernt gemerkte HEIC-Drehung | Gesamt-Review, 15.11.2026 | S |
 | I-004 | M | `setStars()`, `toggleTag()` | Kein Rückgängig für Sterne und Tags (Massenänderung mit einem Tastendruck) | Gesamt-Review, 15.11.2026 | M |
 | I-005 | M | `saveNow()` | Sicherungskopie ist nur 1 Speichervorgang alt | Gesamt-Review, 15.11.2026 | S |
 | I-006 | M | `saveNow()` | Gleichzeitige Änderung der JSON-Datei wird nicht erkannt | Gesamt-Review, 15.11.2026 | M |
@@ -37,6 +34,9 @@ Die Tabelle ist die Übersicht. Zu jedem Punkt stehen weiter unten unter „Deta
 ## Erledigt
 | ID | Erledigt durch | Datum |
 |---|---|---|
+| I-001 | Ungelesene Dateien und Ordner werden übersprungen, mit Hinweis (Commit folgt im PR #6) | 15.11.2026 |
+| I-002 | Erreichbarkeit des Ordners wird vor dem Öffnen geprüft (PR #6) | 15.11.2026 |
+| I-003 | Gemeinsame Regel `isEmptyEntry()` berücksichtigt `orient` (PR #6) | 15.11.2026 |
 
 ## Details
 
@@ -49,21 +49,21 @@ Geschwindigkeit ist kein akutes Problem. Gemessen mit 6.000 Testbildern in 30 Or
 
 ### Priorität H – zuerst
 
-#### I-001 · Eine unlesbare Datei blockiert das Öffnen des ganzen Ordners
+#### I-001 · ✅ erledigt – Eine unlesbare Datei blockiert das Öffnen des ganzen Ordners
 - **Wo:** `scanAll()` (Zeile 672), dort `walk()` und der `pool(...)`-Aufruf.
 - **Beleg:** nachgestellt. Lässt sich bei 3 Bildern eines nicht lesen, bleibt die Fortschrittsanzeige für immer stehen, es erscheint kein Bild und keine Meldung.
 - **Problem:** `f.handle.getFile()` und `dir.entries()` haben kein `try/catch`. Ein Fehler bricht `pool()` ab, `progress(null)` wird nie erreicht. Auslöser in der Praxis: OneDrive-Platzhalter ohne Internet, gesperrte Datei, Unterordner ohne Zugriffsrecht, Datei wird während des Einlesens gelöscht.
 - **Vorschlag:** In `pool`-Callback und in `walk()` je ein `try/catch`. Übersprungene Dateien/Ordner in einer Liste sammeln und nach dem Einlesen einmal melden („3 Dateien konnten nicht gelesen werden“, mit Liste in der Konsole oder in einem Dialog). `progress(null)` in ein `finally`.
 - **Test dazu:** In `e2e.mjs` `FileSystemFileHandle.prototype.getFile` für eine Datei scheitern lassen und prüfen, dass die übrigen Bilder erscheinen.
 
-#### I-002 · Ordner aus „Zuletzt geöffnet“ fehlt: App bleibt leer hängen
+#### I-002 · ✅ erledigt – Ordner aus „Zuletzt geöffnet“ fehlt: App bleibt leer hängen
 - **Wo:** `openRoot()` (Zeile 635), aufgerufen aus `updateRecentButton()`.
 - **Beleg:** nachgestellt. `openRoot` auf einen gelöschten Ordner wirft `NotFoundError`, niemand fängt ihn.
 - **Problem:** Externe Platte nicht angesteckt oder Ordner umbenannt: Der Lesefehler für `pictureselector.json` wird als „neuer Ordner“ gedeutet (`NotFoundError`), danach scheitert `scanAll()`. Die Startseite ist dann schon ausgeblendet, die App zeigt eine leere Fläche mit Fortschrittsanzeige.
 - **Vorschlag:** Am Anfang von `openRoot()` prüfen, ob der Ordner erreichbar ist (z.B. `await handle.keys().next()` in `try/catch`). Bei Fehler: Meldung „Ordner nicht gefunden (Laufwerk angeschlossen?)“, Startseite stehen lassen, Eintrag in der Liste behalten. Zusätzlich den ganzen Rumpf von `openRoot()` in `try/catch` mit Rückkehr zur Startseite.
 - **Hängt zusammen mit:** I-001 (gleiche Stelle, zusammen erledigen).
 
-#### I-003 · Tag löschen entfernt gemerkte HEIC-Drehung
+#### I-003 · ✅ erledigt – Tag löschen entfernt gemerkte HEIC-Drehung
 - **Wo:** `settingsDialog()`, Löschen-Knopf eines Tags (Zeile 2086).
 - **Beleg:** nachgestellt (gleiche Logik isoliert ausgeführt: Eintrag mit `orient`, ohne Sterne, verschwindet).
 - **Problem:** Dort steht `if (!Object.keys(e.stars).length && !e.tags.length) delete S.data.images[p];`. Das Feld `orient` (nur in der Anzeige gedrehtes Bild, z.B. HEIC) wird nicht beachtet. Hatte ein gedrehtes Bild nur dieses eine Tag und keine Sterne, ist die Drehung danach weg. Überall sonst wird korrekt `pruneEntry()` benutzt, das `orient` berücksichtigt.
